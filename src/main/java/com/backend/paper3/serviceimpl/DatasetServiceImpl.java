@@ -3,9 +3,11 @@ package com.backend.paper3.serviceimpl;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 import org.apache.poi.ss.usermodel.DataFormatter;
@@ -13,6 +15,7 @@ import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -20,6 +23,7 @@ import org.springframework.web.multipart.MultipartFile;
 import com.backend.paper3.algorithm.DatasetScoreAlgorithm;
 import com.backend.paper3.dto.DatasetDto;
 import com.backend.paper3.entity.DatasetEntity;
+import com.backend.paper3.enums.DatasetPattern;
 import com.backend.paper3.exception.ApiException;
 import com.backend.paper3.mapper.DatasetMapper;
 import com.backend.paper3.quantum.QuantumDatasetAnalyzer;
@@ -30,486 +34,653 @@ import com.backend.paper3.service.LocalDatasetStorageService;
 @Service
 public class DatasetServiceImpl implements DatasetService {
 
-    @Autowired
-    private DatasetRepository datasetRepository;
+	@Autowired
+	private DatasetRepository datasetRepository;
 
-    @Autowired
-    private DatasetMapper appMapper;
+	@Autowired
+	private DatasetMapper datasetMapper;
 
-    @Autowired
-    private QuantumDatasetAnalyzer quantumAnalyzer;
+	@Autowired
+	private QuantumDatasetAnalyzer quantumAnalyzer;
 
-    @Autowired
-    private LocalDatasetStorageService localDatasetStorageService;
+	@Autowired
+	private LocalDatasetStorageService localDatasetStorageService;
 
-    @Override
-    public DatasetDto createDataset(DatasetDto dto) {
+	@Override
+	public DatasetDto createDataset(DatasetDto dto) {
 
-        try {
+		try {
 
-            if (dto == null) {
-                throw new ApiException("Dataset payload is null");
-            }
+			validateDatasetDto(dto);
 
-            if (dto.getDatasetName() == null || dto.getDatasetName().trim().isEmpty()) {
-                throw new ApiException("Dataset name is required");
-            }
+			normalizeDtoDefaults(dto);
 
-            double value = dto.getValue() == null ? 0.0 : dto.getValue();
+			double value = dto.getValue() == null ? 0.0 : dto.getValue();
 
-            dto.setValue(value);
+			dto.setValue(value);
 
-            double quantumScore = quantumAnalyzer.calculateQuantumScore(value);
+			double quantumScore = quantumAnalyzer.calculateQuantumScore(value);
 
-            double sortednessScore = DatasetScoreAlgorithm.calculateSortedness(dto);
+			double sortednessScore = DatasetScoreAlgorithm.calculateSortedness(dto);
 
-            double finalScore = (quantumScore + sortednessScore) / 2.0;
+			double finalScore = (quantumScore + sortednessScore) / 2.0;
 
-            DatasetEntity entity = new DatasetEntity();
+			dto.setQuantumScore(quantumScore);
+			dto.setSortednessScore(sortednessScore);
+			dto.setFinalScore(finalScore);
 
-            entity.setDatasetName(dto.getDatasetName());
-            entity.setOriginalFileName(dto.getOriginalFileName());
-            entity.setFilePath(dto.getFilePath());
-            entity.setFileType(dto.getFileType());
-            entity.setFileSizeBytes(dto.getFileSizeBytes());
+			DatasetEntity entity = new DatasetEntity();
 
-            entity.setRecordCount(dto.getRecordCount());
-            entity.setColumnCount(dto.getColumnCount());
+			copyDtoToEntity(dto, entity, true);
 
-            entity.setNullPercentage(dto.getNullPercentage());
-            entity.setDuplicatePercentage(dto.getDuplicatePercentage());
+			DatasetEntity savedEntity = datasetRepository.save(entity);
 
-            entity.setValue(value);
-            entity.setQuantumScore(quantumScore);
-            entity.setSortednessScore(sortednessScore);
-            entity.setFinalScore(finalScore);
+			return datasetMapper.toDto(savedEntity);
 
-            entity.setCreatedAt(LocalDateTime.now());
+		} catch (ApiException e) {
 
-            DatasetEntity savedEntity = datasetRepository.save(entity);
+			throw e;
 
-            return appMapper.toDto(savedEntity);
+		} catch (Exception e) {
 
-        } catch (ApiException e) {
+			throw new ApiException("Failed to create dataset : " + e.getMessage());
+		}
+	}
 
-            throw e;
+	@Override
+	public DatasetDto createFromCsv(MultipartFile file) {
 
-        } catch (Exception e) {
+		try {
 
-            throw new ApiException("Failed to create dataset : " + e.getMessage());
-        }
-    }
+			validateFile(file);
 
-    @Override
-    public DatasetDto createFromCsv(MultipartFile file) {
+			String originalFileName = file.getOriginalFilename();
 
-        try {
+			rejectDuplicateUpload(originalFileName, file.getSize());
 
-            String storedPath = localDatasetStorageService.storeFile(file);
+			String storedPath = localDatasetStorageService.storeFile(file);
 
-            DatasetDto dto = analyzeCsv(file);
+			DatasetDto dto = analyzeCsv(file);
 
-            dto.setDatasetName(removeExtension(file.getOriginalFilename()));
-            dto.setOriginalFileName(file.getOriginalFilename());
-            dto.setFilePath(storedPath);
-            dto.setFileType("CSV");
-            dto.setFileSizeBytes(file.getSize());
+			String datasetName = removeExtension(originalFileName);
 
-            return createDataset(dto);
+			dto.setDatasetName(datasetName);
 
-        } catch (Exception e) {
+			dto.setDatasetUniqueId(generateUniqueDatasetId(datasetName));
 
-            throw new ApiException("CSV upload failed : " + e.getMessage());
-        }
-    }
+			dto.setOriginalFileName(originalFileName);
+			dto.setFilePath(storedPath);
+			dto.setFileType("CSV");
+			dto.setFileSizeBytes(file.getSize());
 
-    @Override
-   
-    public DatasetDto createFromXlsx(MultipartFile file) {
+			return createDataset(dto);
 
-        try {
+		} catch (ApiException e) {
 
-            String storedPath = localDatasetStorageService.storeFile(file);
+			throw e;
 
-            Workbook workbook = new XSSFWorkbook(file.getInputStream());
+		} catch (Exception e) {
 
-            Sheet sheet = workbook.getSheetAt(0);
+			throw new ApiException("CSV upload failed : " + e.getMessage());
+		}
+	}
 
-            int rowCount = 0;
-            int columnCount = 0;
+	@Override
+	public DatasetDto createFromXlsx(MultipartFile file) {
 
-            boolean headerSkipped = false;
+		try {
 
-            for (Row row : sheet) {
+			validateFile(file);
 
-                if (row == null) {
-                    continue;
-                }
+			String originalFileName = file.getOriginalFilename();
 
-                if (!headerSkipped) {
-                    columnCount = row.getLastCellNum();
-                    headerSkipped = true;
-                    continue;
-                }
+			rejectDuplicateUpload(originalFileName, file.getSize());
 
-                if (row.getLastCellNum() > 0) {
-                    rowCount++;
-                    columnCount = Math.max(columnCount, row.getLastCellNum());
-                }
-            }
+			String storedPath = localDatasetStorageService.storeFile(file);
 
-            workbook.close();
+			DatasetDto dto = analyzeXlsx(file);
 
-            DatasetDto dto = new DatasetDto();
+			String datasetName = removeExtension(originalFileName);
 
-            dto.setDatasetName(removeExtension(file.getOriginalFilename()));
-            dto.setOriginalFileName(file.getOriginalFilename());
-            dto.setFilePath(storedPath);
-            dto.setFileType("XLSX");
-            dto.setFileSizeBytes(file.getSize());
+			dto.setDatasetName(datasetName);
 
-            dto.setRecordCount((long) rowCount);
-            dto.setColumnCount(columnCount);
+			dto.setDatasetUniqueId(generateUniqueDatasetId(datasetName));
 
-            dto.setNullPercentage(0.0);
-            dto.setDuplicatePercentage(0.0);
-            dto.setValue(1.0);
+			dto.setOriginalFileName(originalFileName);
+			dto.setFilePath(storedPath);
+			dto.setFileType("XLSX");
+			dto.setFileSizeBytes(file.getSize());
 
-            return createDataset(dto);
+			return createDataset(dto);
 
-        } catch (Exception e) {
+		} catch (ApiException e) {
 
-            throw new ApiException("XLSX upload failed : " + e.getMessage());
-        }
-    }
+			throw e;
 
-    private DatasetDto analyzeCsv(MultipartFile file) {
+		} catch (Exception e) {
 
-        try {
+			throw new ApiException("XLSX upload failed : " + e.getMessage());
+		}
+	}
 
-            DatasetDto dto = new DatasetDto();
+	@Override
+	public List<DatasetDto> getAllDatasets() {
 
-            BufferedReader br = new BufferedReader(
-                    new InputStreamReader(file.getInputStream())
-            );
+		List<DatasetEntity> entityList = datasetRepository.findAll();
 
-            String line;
+		return entityList.stream().map(datasetMapper::toDto).collect(Collectors.toList());
+	}
 
-            int rowCount = 0;
-            int columnCount = 0;
+	@Override
+	public DatasetDto getDatasetById(Long id) {
 
-            int totalCells = 0;
-            int nullCells = 0;
+		DatasetEntity entity = datasetRepository.findById(id)
+				.orElseThrow(() -> new ApiException("Dataset not found with id : " + id));
 
-            double numericSum = 0.0;
-            int numericCount = 0;
+		return datasetMapper.toDto(entity);
+	}
 
-            Set<String> uniqueRows = new HashSet<>();
+	@Override
+	public DatasetDto getDatasetByUniqueId(String datasetUniqueId) {
 
-            boolean headerSkipped = false;
+		if (datasetUniqueId == null || datasetUniqueId.trim().isEmpty()) {
 
-            while ((line = br.readLine()) != null) {
+			throw new ApiException("Dataset unique id is required");
+		}
 
-                if (line.trim().isEmpty()) {
-                    continue;
-                }
+		DatasetEntity entity = datasetRepository.findByDatasetUniqueId(datasetUniqueId.trim())
+				.orElseThrow(() -> new ApiException("Dataset not found with unique id : " + datasetUniqueId));
 
-                String[] cells = line.split(",", -1);
+		return datasetMapper.toDto(entity);
+	}
 
-                if (!headerSkipped) {
-                    columnCount = cells.length;
-                    headerSkipped = true;
-                    continue;
-                }
+	@Override
+	public DatasetDto updateDataset(Long id, DatasetDto dto) {
 
-                rowCount++;
+		try {
 
-                uniqueRows.add(line.trim());
+			if (dto == null) {
+				throw new ApiException("Dataset payload is null");
+			}
 
-                columnCount = Math.max(columnCount, cells.length);
+			DatasetEntity entity = datasetRepository.findById(id)
+					.orElseThrow(() -> new ApiException("Dataset not found with id : " + id));
 
-                for (String cell : cells) {
+			if (dto.getDatasetName() == null || dto.getDatasetName().trim().isEmpty()) {
 
-                    totalCells++;
+				dto.setDatasetName(entity.getDatasetName());
+			}
 
-                    String value = cell == null ? "" : cell.trim();
+			if (dto.getDatasetUniqueId() == null || dto.getDatasetUniqueId().trim().isEmpty()) {
 
-                    if (value.isEmpty()) {
-                        nullCells++;
-                    } else {
-                        Double number = tryParseDouble(value);
+				dto.setDatasetUniqueId(entity.getDatasetUniqueId());
+			}
 
-                        if (number != null) {
-                            numericSum += number;
-                            numericCount++;
-                        }
-                    }
-                }
-            }
+			normalizeDtoDefaults(dto);
 
-            br.close();
+			double value = dto.getValue() == null ? 0.0 : dto.getValue();
 
-            fillMetadata(
-                    dto,
-                    rowCount,
-                    columnCount,
-                    totalCells,
-                    nullCells,
-                    numericSum,
-                    numericCount,
-                    uniqueRows.size()
-            );
+			dto.setValue(value);
 
-            return dto;
+			double quantumScore = quantumAnalyzer.calculateQuantumScore(value);
 
-        } catch (Exception e) {
+			double sortednessScore = DatasetScoreAlgorithm.calculateSortedness(dto);
 
-            throw new ApiException("CSV analysis failed : " + e.getMessage());
-        }
-    }
+			double finalScore = (quantumScore + sortednessScore) / 2.0;
 
-    private DatasetDto analyzeXlsx(MultipartFile file) {
+			dto.setQuantumScore(quantumScore);
+			dto.setSortednessScore(sortednessScore);
+			dto.setFinalScore(finalScore);
 
-        try {
+			copyDtoToEntity(dto, entity, false);
 
-            DatasetDto dto = new DatasetDto();
+			DatasetEntity updatedEntity = datasetRepository.save(entity);
 
-            Workbook workbook = new XSSFWorkbook(file.getInputStream());
+			return datasetMapper.toDto(updatedEntity);
 
-            Sheet sheet = workbook.getSheetAt(0);
+		} catch (ApiException e) {
 
-            DataFormatter formatter = new DataFormatter();
+			throw e;
 
-            int rowCount = 0;
-            int columnCount = 0;
+		} catch (Exception e) {
 
-            int totalCells = 0;
-            int nullCells = 0;
+			throw new ApiException("Failed to update dataset : " + e.getMessage());
+		}
+	}
 
-            double numericSum = 0.0;
-            int numericCount = 0;
+	@Override
+	public String deleteDataset(Long id) {
 
-            Set<String> uniqueRows = new HashSet<>();
+		DatasetEntity entity = datasetRepository.findById(id)
+				.orElseThrow(() -> new ApiException("Dataset not found with id : " + id));
 
-            boolean headerSkipped = false;
+		datasetRepository.delete(entity);
 
-            for (Row row : sheet) {
+		return "Dataset deleted successfully";
+	}
 
-                if (row == null) {
-                    continue;
-                }
+	private DatasetDto analyzeCsv(MultipartFile file) {
 
-                int lastCellNumber = row.getLastCellNum();
+		try {
 
-                if (lastCellNumber <= 0) {
-                    continue;
-                }
+			DatasetDto dto = new DatasetDto();
 
-                columnCount = Math.max(columnCount, lastCellNumber);
+			BufferedReader br = new BufferedReader(new InputStreamReader(file.getInputStream()));
 
-                if (!headerSkipped) {
-                    headerSkipped = true;
-                    continue;
-                }
+			String line;
 
-                StringBuilder rowData = new StringBuilder();
+			int rowCount = 0;
+			int columnCount = 0;
 
-                boolean emptyRow = true;
+			int totalCells = 0;
+			int nullCells = 0;
 
-                for (int i = 0; i < lastCellNumber; i++) {
+			double numericSum = 0.0;
+			int numericCount = 0;
 
-                    String cellValue = formatter
-                            .formatCellValue(row.getCell(i))
-                            .trim();
+			Set<String> uniqueRows = new HashSet<>();
 
-                    rowData.append(cellValue).append("|");
+			boolean headerSkipped = false;
 
-                    if (!cellValue.isEmpty()) {
-                        emptyRow = false;
-                    }
-                }
+			while ((line = br.readLine()) != null) {
 
-                if (emptyRow) {
-                    continue;
-                }
+				if (line.trim().isEmpty()) {
+					continue;
+				}
 
-                rowCount++;
+				String[] cells = line.split(",", -1);
 
-                uniqueRows.add(rowData.toString());
+				if (!headerSkipped) {
 
-                for (int i = 0; i < lastCellNumber; i++) {
+					columnCount = cells.length;
 
-                    totalCells++;
+					if (cells.length > 0) {
+						dto.setSelectedSortColumn(cleanText(cells[0]));
+					}
 
-                    String cellValue = formatter
-                            .formatCellValue(row.getCell(i))
-                            .trim();
+					headerSkipped = true;
+					continue;
+				}
 
-                    if (cellValue.isEmpty()) {
+				rowCount++;
 
-                        nullCells++;
+				uniqueRows.add(line.trim());
 
-                    } else {
+				columnCount = Math.max(columnCount, cells.length);
 
-                        Double number = tryParseDouble(cellValue);
+				for (String cell : cells) {
 
-                        if (number != null) {
-                            numericSum += number;
-                            numericCount++;
-                        }
-                    }
-                }
-            }
+					totalCells++;
 
-            workbook.close();
+					String value = cell == null ? "" : cell.trim();
 
-            fillMetadata(
-                    dto,
-                    rowCount,
-                    columnCount,
-                    totalCells,
-                    nullCells,
-                    numericSum,
-                    numericCount,
-                    uniqueRows.size()
-            );
+					if (value.isEmpty()) {
 
-            return dto;
+						nullCells++;
 
-        } catch (Exception e) {
+					} else {
 
-            throw new ApiException("XLSX analysis failed : " + e.getMessage());
-        }
-    }
+						Double number = tryParseDouble(value);
 
-    private void fillMetadata(
-            DatasetDto dto,
-            int rowCount,
-            int columnCount,
-            int totalCells,
-            int nullCells,
-            double numericSum,
-            int numericCount,
-            int uniqueRowCount
-    ) {
+						if (number != null) {
+							numericSum += number;
+							numericCount++;
+						}
+					}
+				}
+			}
 
-        dto.setRecordCount((long) rowCount);
-        dto.setColumnCount(columnCount);
+			br.close();
 
-        double nullPercentage = totalCells == 0
-                ? 0.0
-                : (nullCells * 100.0) / totalCells;
+			fillMetadata(dto, rowCount, columnCount, totalCells, nullCells, numericSum, numericCount,
+					uniqueRows.size());
 
-        double duplicatePercentage = rowCount == 0
-                ? 0.0
-                : ((rowCount - uniqueRowCount) * 100.0) / rowCount;
+			return dto;
 
-        double value = numericCount == 0
-                ? 1.0
-                : numericSum / numericCount;
+		} catch (Exception e) {
 
-        dto.setNullPercentage(nullPercentage);
-        dto.setDuplicatePercentage(duplicatePercentage);
-        dto.setValue(value);
-    }
+			throw new ApiException("CSV analysis failed : " + e.getMessage());
+		}
+	}
 
-    @Override
-    public List<DatasetDto> getAllDatasets() {
+	private DatasetDto analyzeXlsx(MultipartFile file) {
 
-        List<DatasetEntity> entityList = datasetRepository.findAll();
+		try {
 
-        return entityList
-                .stream()
-                .map(appMapper::toDto)
-                .collect(Collectors.toList());
-    }
+			DatasetDto dto = new DatasetDto();
 
-    @Override
-    public DatasetDto getDatasetById(Long id) {
+			Workbook workbook = new XSSFWorkbook(file.getInputStream());
 
-        DatasetEntity entity = datasetRepository.findById(id)
-                .orElseThrow(() -> new ApiException("Dataset not found with id : " + id));
+			Sheet sheet = workbook.getSheetAt(0);
 
-        return appMapper.toDto(entity);
-    }
+			DataFormatter formatter = new DataFormatter();
 
-    @Override
-    public DatasetDto updateDataset(Long id, DatasetDto dto) {
+			int rowCount = 0;
+			int columnCount = 0;
 
-        DatasetEntity entity = datasetRepository.findById(id)
-                .orElseThrow(() -> new ApiException("Dataset not found with id : " + id));
+			int totalCells = 0;
+			int nullCells = 0;
 
-        entity.setDatasetName(dto.getDatasetName());
-        entity.setOriginalFileName(dto.getOriginalFileName());
-        entity.setFilePath(dto.getFilePath());
-        entity.setFileType(dto.getFileType());
-        entity.setFileSizeBytes(dto.getFileSizeBytes());
+			double numericSum = 0.0;
+			int numericCount = 0;
 
-        entity.setRecordCount(dto.getRecordCount());
-        entity.setColumnCount(dto.getColumnCount());
+			Set<String> uniqueRows = new HashSet<>();
 
-        entity.setNullPercentage(dto.getNullPercentage());
-        entity.setDuplicatePercentage(dto.getDuplicatePercentage());
+			boolean headerSkipped = false;
 
-        double value = dto.getValue() == null ? 0.0 : dto.getValue();
+			for (Row row : sheet) {
 
-        dto.setValue(value);
+				if (row == null) {
+					continue;
+				}
 
-        double quantumScore = quantumAnalyzer.calculateQuantumScore(value);
+				int lastCellNumber = row.getLastCellNum();
 
-        double sortednessScore = DatasetScoreAlgorithm.calculateSortedness(dto);
+				if (lastCellNumber <= 0) {
+					continue;
+				}
 
-        double finalScore = (quantumScore + sortednessScore) / 2.0;
+				columnCount = Math.max(columnCount, lastCellNumber);
 
-        entity.setValue(value);
-        entity.setQuantumScore(quantumScore);
-        entity.setSortednessScore(sortednessScore);
-        entity.setFinalScore(finalScore);
+				if (!headerSkipped) {
 
-        DatasetEntity updatedEntity = datasetRepository.save(entity);
+					if (lastCellNumber > 0) {
 
-        return appMapper.toDto(updatedEntity);
-    }
+						String firstHeader = formatter.formatCellValue(row.getCell(0)).trim();
 
-    @Override
-    public String deleteDataset(Long id) {
+						dto.setSelectedSortColumn(cleanText(firstHeader));
+					}
 
-        DatasetEntity entity = datasetRepository.findById(id)
-                .orElseThrow(() -> new ApiException("Dataset not found with id : " + id));
+					headerSkipped = true;
+					continue;
+				}
 
-        datasetRepository.delete(entity);
+				StringBuilder rowData = new StringBuilder();
 
-        return "Dataset deleted successfully";
-    }
+				boolean emptyRow = true;
 
-    private Double tryParseDouble(String value) {
+				for (int i = 0; i < lastCellNumber; i++) {
 
-        try {
+					String cellValue = formatter.formatCellValue(row.getCell(i)).trim();
 
-            if (value == null || value.trim().isEmpty()) {
-                return null;
-            }
+					rowData.append(cellValue).append("|");
 
-            return Double.parseDouble(value.replace(",", "").trim());
+					if (!cellValue.isEmpty()) {
+						emptyRow = false;
+					}
+				}
 
-        } catch (Exception e) {
+				if (emptyRow) {
+					continue;
+				}
 
-            return null;
-        }
-    }
+				rowCount++;
 
-    private String removeExtension(String fileName) {
+				uniqueRows.add(rowData.toString());
 
-        if (fileName == null) {
-            return "dataset";
-        }
+				for (int i = 0; i < lastCellNumber; i++) {
 
-        int index = fileName.lastIndexOf(".");
+					totalCells++;
 
-        if (index == -1) {
-            return fileName;
-        }
+					String cellValue = formatter.formatCellValue(row.getCell(i)).trim();
 
-        return fileName.substring(0, index);
-    }
+					if (cellValue.isEmpty()) {
+
+						nullCells++;
+
+					} else {
+
+						Double number = tryParseDouble(cellValue);
+
+						if (number != null) {
+							numericSum += number;
+							numericCount++;
+						}
+					}
+				}
+			}
+
+			workbook.close();
+
+			fillMetadata(dto, rowCount, columnCount, totalCells, nullCells, numericSum, numericCount,
+					uniqueRows.size());
+
+			return dto;
+
+		} catch (Exception e) {
+
+			throw new ApiException("XLSX analysis failed : " + e.getMessage());
+		}
+	}
+
+	private void fillMetadata(DatasetDto dto, int rowCount, int columnCount, int totalCells, int nullCells,
+			double numericSum, int numericCount, int uniqueRowCount) {
+
+		dto.setRecordCount((long) rowCount);
+
+		dto.setColumnCount(columnCount);
+
+		double nullPercentage = totalCells == 0 ? 0.0 : (nullCells * 100.0) / totalCells;
+
+		double duplicatePercentage = rowCount == 0 ? 0.0 : ((rowCount - uniqueRowCount) * 100.0) / rowCount;
+
+		double value = numericCount == 0 ? 1.0 : numericSum / numericCount;
+
+		dto.setNullPercentage(nullPercentage);
+
+		dto.setDuplicatePercentage(duplicatePercentage);
+
+		dto.setValue(value);
+
+		dto.setDataType(numericCount > 0 ? "NUMERIC" : "TEXT");
+
+		dto.setSkewnessValue(0.0);
+
+		dto.setDetectedPattern(detectPattern(duplicatePercentage));
+	}
+
+	private void validateDatasetDto(DatasetDto dto) {
+
+		if (dto == null) {
+			throw new ApiException("Dataset payload is null");
+		}
+
+		if (dto.getDatasetName() == null || dto.getDatasetName().trim().isEmpty()) {
+
+			throw new ApiException("Dataset name is required");
+		}
+	}
+
+	private void validateFile(MultipartFile file) {
+
+		if (file == null || file.isEmpty()) {
+			throw new ApiException("Uploaded file is empty");
+		}
+
+		String originalFileName = file.getOriginalFilename();
+
+		if (originalFileName == null || originalFileName.isBlank()) {
+
+			throw new ApiException("Invalid file name");
+		}
+	}
+
+	private void rejectDuplicateUpload(String originalFileName, Long fileSizeBytes) {
+
+		if (originalFileName == null || fileSizeBytes == null) {
+			return;
+		}
+
+		boolean alreadyExists = datasetRepository.existsByOriginalFileNameAndFileSizeBytes(originalFileName,
+				fileSizeBytes);
+
+		if (alreadyExists) {
+			throw new ApiException("This dataset file is already uploaded. Duplicate insert stopped.");
+		}
+	}
+
+	private void normalizeDtoDefaults(DatasetDto dto) {
+
+		if (dto.getDatasetUniqueId() == null || dto.getDatasetUniqueId().trim().isEmpty()) {
+
+			dto.setDatasetUniqueId(generateUniqueDatasetId(dto.getDatasetName()));
+		}
+
+		if (dto.getNullPercentage() == null) {
+			dto.setNullPercentage(0.0);
+		}
+
+		if (dto.getDuplicatePercentage() == null) {
+			dto.setDuplicatePercentage(0.0);
+		}
+
+		if (dto.getSkewnessValue() == null) {
+			dto.setSkewnessValue(0.0);
+		}
+
+		if (dto.getDetectedPattern() == null) {
+			dto.setDetectedPattern(DatasetPattern.UNKNOWN);
+		}
+
+		if (dto.getDataType() == null || dto.getDataType().trim().isEmpty()) {
+
+			dto.setDataType("UNKNOWN");
+		}
+
+		if (dto.getSelectedSortColumn() == null || dto.getSelectedSortColumn().trim().isEmpty()) {
+
+			dto.setSelectedSortColumn("AUTO_DETECTED_FIRST_COLUMN");
+		}
+
+		if (dto.getValue() == null) {
+			dto.setValue(0.0);
+		}
+	}
+
+	private void copyDtoToEntity(DatasetDto dto, DatasetEntity entity, boolean isCreate) {
+
+		entity.setDatasetUniqueId(dto.getDatasetUniqueId());
+
+		entity.setDatasetName(dto.getDatasetName());
+
+		entity.setOriginalFileName(dto.getOriginalFileName());
+
+		entity.setFilePath(dto.getFilePath());
+
+		entity.setFileType(dto.getFileType());
+
+		entity.setFileSizeBytes(dto.getFileSizeBytes());
+
+		entity.setRecordCount(dto.getRecordCount());
+
+		entity.setColumnCount(dto.getColumnCount());
+
+		entity.setSelectedSortColumn(dto.getSelectedSortColumn());
+
+		entity.setDataType(dto.getDataType());
+
+		entity.setDetectedPattern(dto.getDetectedPattern());
+
+		entity.setValue(dto.getValue());
+
+		entity.setDuplicatePercentage(dto.getDuplicatePercentage());
+
+		entity.setNullPercentage(dto.getNullPercentage());
+
+		entity.setSkewnessValue(dto.getSkewnessValue());
+
+		entity.setSortednessScore(dto.getSortednessScore());
+
+		entity.setQuantumScore(dto.getQuantumScore());
+
+		entity.setFinalScore(dto.getFinalScore());
+
+		if (isCreate) {
+			entity.setCreatedAt(LocalDateTime.now());
+		}
+	}
+
+	private DatasetPattern detectPattern(double duplicatePercentage) {
+
+		if (duplicatePercentage >= 30.0) {
+			return DatasetPattern.REPEATED_VALUES;
+		}
+
+		return DatasetPattern.UNKNOWN;
+	}
+
+	private String generateUniqueDatasetId(String datasetName) {
+
+		String safeName = datasetName == null ? "DATASET"
+				: datasetName.trim().toUpperCase().replaceAll("[^A-Z0-9]", "_").replaceAll("_+", "_");
+
+		if (safeName.isBlank()) {
+			safeName = "DATASET";
+		}
+
+		if (safeName.length() > 20) {
+			safeName = safeName.substring(0, 20);
+		}
+
+		String dateTime = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
+
+		String datasetUniqueId;
+
+		do {
+
+			String random = UUID.randomUUID().toString().replace("-", "").substring(0, 8).toUpperCase();
+
+			datasetUniqueId = "DS-" + safeName + "-" + dateTime + "-" + random;
+
+		} while (datasetRepository.existsByDatasetUniqueId(datasetUniqueId));
+
+		return datasetUniqueId;
+	}
+
+	private Double tryParseDouble(String value) {
+
+		try {
+
+			if (value == null || value.trim().isEmpty()) {
+				return null;
+			}
+
+			return Double.parseDouble(value.replace(",", "").trim());
+
+		} catch (Exception e) {
+
+			return null;
+		}
+	}
+
+	private String cleanText(String value) {
+
+		if (value == null) {
+			return null;
+		}
+
+		String trimmed = value.trim();
+
+		if (trimmed.isEmpty()) {
+			return null;
+		}
+
+		return trimmed;
+	}
+
+	private String removeExtension(String fileName) {
+
+		if (fileName == null || fileName.isBlank()) {
+
+			return "dataset";
+		}
+
+		int index = fileName.lastIndexOf(".");
+
+		if (index == -1) {
+			return fileName;
+		}
+
+		return fileName.substring(0, index);
+	}
 }

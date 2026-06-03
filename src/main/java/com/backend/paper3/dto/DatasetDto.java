@@ -11,41 +11,43 @@ import lombok.Setter;
 @Setter
 public class DatasetDto {
 
-    private Long id;
+	private Long id;
 
-    private String datasetName;
+	private String datasetUniqueId;
 
-    private String originalFileName;
+	private String datasetName;
 
-    private String filePath;
+	private String originalFileName;
 
-    private String fileType;
+	private String filePath;
 
-    private Long fileSizeBytes;
+	private String fileType;
 
-    private Long recordCount;
+	private Long fileSizeBytes;
 
-    private Integer columnCount;
+	private Long recordCount;
 
-    private String selectedSortColumn;
+	private Integer columnCount;
 
-    private String dataType;
+	private String selectedSortColumn;
 
-    private DatasetPattern detectedPattern;
+	private String dataType;
 
-    private Double value;
+	private DatasetPattern detectedPattern;
 
-    private Double duplicatePercentage;
+	private Double value;
 
-    private Double nullPercentage;
+	private Double duplicatePercentage;
 
-    private Double skewnessValue;
+	private Double nullPercentage;
 
-    private Double sortednessScore;
+	private Double skewnessValue;
 
-    private Double quantumScore;
+	private Double sortednessScore;
 
-    private Double finalScore;
+	private Double quantumScore;
 
-    private LocalDateTime createdAt;
+	private Double finalScore;
+
+	private LocalDateTime createdAt;
 }

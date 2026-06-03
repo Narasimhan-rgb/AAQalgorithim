@@ -4,7 +4,15 @@ import java.time.LocalDateTime;
 
 import com.backend.paper3.enums.DatasetPattern;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+
 import lombok.Getter;
 import lombok.Setter;
 
@@ -14,62 +22,65 @@ import lombok.Setter;
 @Setter
 public class DatasetEntity {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+	@Id
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	private Long id;
 
-    @Column(name = "dataset_name", nullable = false)
-    private String datasetName;
+	@Column(name = "dataset_unique_id", unique = true, length = 100)
+	private String datasetUniqueId;
 
-    @Column(name = "original_file_name")
-    private String originalFileName;
+	@Column(name = "dataset_name", nullable = false)
+	private String datasetName;
 
-    @Column(name = "file_path", columnDefinition = "TEXT")
-    private String filePath;
+	@Column(name = "original_file_name")
+	private String originalFileName;
 
-    @Column(name = "file_type")
-    private String fileType;
+	@Column(name = "file_path", columnDefinition = "TEXT")
+	private String filePath;
 
-    @Column(name = "file_size_bytes")
-    private Long fileSizeBytes;
+	@Column(name = "file_type")
+	private String fileType;
 
-    @Column(name = "record_count")
-    private Long recordCount;
+	@Column(name = "file_size_bytes")
+	private Long fileSizeBytes;
 
-    @Column(name = "column_count")
-    private Integer columnCount;
+	@Column(name = "record_count")
+	private Long recordCount;
 
-    @Column(name = "selected_sort_column")
-    private String selectedSortColumn;
+	@Column(name = "column_count")
+	private Integer columnCount;
 
-    @Column(name = "data_type")
-    private String dataType;
+	@Column(name = "selected_sort_column")
+	private String selectedSortColumn;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "detected_pattern")
-    private DatasetPattern detectedPattern;
+	@Column(name = "data_type")
+	private String dataType;
 
-    @Column(name = "value")
-    private Double value;
+	@Enumerated(EnumType.STRING)
+	@Column(name = "detected_pattern")
+	private DatasetPattern detectedPattern;
 
-    @Column(name = "duplicate_percentage")
-    private Double duplicatePercentage;
+	@Column(name = "value")
+	private Double value;
 
-    @Column(name = "null_percentage")
-    private Double nullPercentage;
+	@Column(name = "duplicate_percentage")
+	private Double duplicatePercentage;
 
-    @Column(name = "skewness_value")
-    private Double skewnessValue;
+	@Column(name = "null_percentage")
+	private Double nullPercentage;
 
-    @Column(name = "sortedness_score")
-    private Double sortednessScore;
+	@Column(name = "skewness_value")
+	private Double skewnessValue;
 
-    @Column(name = "quantum_score")
-    private Double quantumScore;
+	@Column(name = "sortedness_score")
+	private Double sortednessScore;
 
-    @Column(name = "final_score")
-    private Double finalScore;
+	@Column(name = "quantum_score")
+	private Double quantumScore;
 
-    @Column(name = "created_at")
-    private LocalDateTime createdAt;
+	@Column(name = "final_score")
+	private Double finalScore;
+
+	@Column(name = "created_at")
+	private LocalDateTime createdAt;
 }

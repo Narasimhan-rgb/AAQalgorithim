@@ -8,17 +8,19 @@ import com.backend.paper3.dto.DatasetDto;
 
 public interface DatasetService {
 
-    DatasetDto createDataset(DatasetDto dto);
+	DatasetDto createDataset(DatasetDto dto);
 
-    List<DatasetDto> getAllDatasets();
+	List<DatasetDto> getAllDatasets();
 
-    DatasetDto getDatasetById(Long id);
+	DatasetDto getDatasetById(Long id);
 
-    DatasetDto updateDataset(Long id, DatasetDto dto);
+	DatasetDto getDatasetByUniqueId(String datasetUniqueId);
 
-    String deleteDataset(Long id);
+	DatasetDto updateDataset(Long id, DatasetDto dto);
 
-    DatasetDto createFromCsv(MultipartFile file);
+	String deleteDataset(Long id);
 
-    DatasetDto createFromXlsx(MultipartFile file);
+	DatasetDto createFromCsv(MultipartFile file);
+
+	DatasetDto createFromXlsx(MultipartFile file);
 }
