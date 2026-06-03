@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-
+import com.backend.paper3.dto.DatasetPreviewDto;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.backend.paper3.dto.DatasetDto;
@@ -63,6 +63,10 @@ public class DatasetController {
 	public List<DatasetDto> getAllDatasets() {
 		return datasetService.getAllDatasets();
 	}
+	@GetMapping("/{id}/preview")
+	public DatasetPreviewDto previewDataset(@PathVariable Long id) {
+	    return datasetService.previewDataset(id);
+	}
 
 	@GetMapping("/{id}")
 	public DatasetDto getDatasetById(@PathVariable Long id) {
@@ -83,4 +87,5 @@ public class DatasetController {
 	public String deleteDataset(@PathVariable Long id) {
 		return datasetService.deleteDataset(id);
 	}
+
 }

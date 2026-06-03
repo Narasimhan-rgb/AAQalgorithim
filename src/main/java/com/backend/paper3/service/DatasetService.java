@@ -5,22 +5,25 @@ import java.util.List;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.backend.paper3.dto.DatasetDto;
+import com.backend.paper3.dto.DatasetPreviewDto;
 
 public interface DatasetService {
 
-	DatasetDto createDataset(DatasetDto dto);
+    DatasetDto createDataset(DatasetDto dto);
 
-	List<DatasetDto> getAllDatasets();
+    List<DatasetDto> getAllDatasets();
 
-	DatasetDto getDatasetById(Long id);
+    DatasetDto getDatasetById(Long id);
 
-	DatasetDto getDatasetByUniqueId(String datasetUniqueId);
+    DatasetDto getDatasetByUniqueId(String datasetUniqueId);
 
-	DatasetDto updateDataset(Long id, DatasetDto dto);
+    DatasetPreviewDto previewDataset(Long id);
 
-	String deleteDataset(Long id);
+    DatasetDto updateDataset(Long id, DatasetDto dto);
 
-	DatasetDto createFromCsv(MultipartFile file);
+    String deleteDataset(Long id);
 
-	DatasetDto createFromXlsx(MultipartFile file);
-}
+    DatasetDto createFromCsv(MultipartFile file);
+
+    DatasetDto createFromXlsx(MultipartFile file);
+}	
