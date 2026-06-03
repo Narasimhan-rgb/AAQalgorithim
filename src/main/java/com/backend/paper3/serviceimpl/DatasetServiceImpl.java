@@ -4,9 +4,8 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -96,11 +95,16 @@ public class DatasetServiceImpl implements DatasetService {
 
 			String originalFileName = file.getOriginalFilename();
 
-			rejectDuplicateUpload(originalFileName, file.getSize());
+			Optional<DatasetEntity> existingDataset = datasetRepository
+					.findByOriginalFileNameAndFileSizeBytes(originalFileName, file.getSize());
+
+			if (existingDataset.isPresent()) {
+				return datasetMapper.toDto(existingDataset.get());
+			}
 
 			String storedPath = localDatasetStorageService.storeFile(file);
 
-			DatasetDto dto = analyzeCsv(file);
+			DatasetDto dto = fastReadCsvHeader(file);
 
 			String datasetName = removeExtension(originalFileName);
 
@@ -134,11 +138,16 @@ public class DatasetServiceImpl implements DatasetService {
 
 			String originalFileName = file.getOriginalFilename();
 
-			rejectDuplicateUpload(originalFileName, file.getSize());
+			Optional<DatasetEntity> existingDataset = datasetRepository
+					.findByOriginalFileNameAndFileSizeBytes(originalFileName, file.getSize());
+
+			if (existingDataset.isPresent()) {
+				return datasetMapper.toDto(existingDataset.get());
+			}
 
 			String storedPath = localDatasetStorageService.storeFile(file);
 
-			DatasetDto dto = analyzeXlsx(file);
+			DatasetDto dto = fastReadXlsxHeader(file);
 
 			String datasetName = removeExtension(originalFileName);
 
@@ -259,7 +268,7 @@ public class DatasetServiceImpl implements DatasetService {
 		return "Dataset deleted successfully";
 	}
 
-	private DatasetDto analyzeCsv(MultipartFile file) {
+	private DatasetDto fastReadCsvHeader(MultipartFile file) {
 
 		try {
 
@@ -267,83 +276,48 @@ public class DatasetServiceImpl implements DatasetService {
 
 			BufferedReader br = new BufferedReader(new InputStreamReader(file.getInputStream()));
 
-			String line;
-
-			int rowCount = 0;
-			int columnCount = 0;
-
-			int totalCells = 0;
-			int nullCells = 0;
-
-			double numericSum = 0.0;
-			int numericCount = 0;
-
-			Set<String> uniqueRows = new HashSet<>();
-
-			boolean headerSkipped = false;
-
-			while ((line = br.readLine()) != null) {
-
-				if (line.trim().isEmpty()) {
-					continue;
-				}
-
-				String[] cells = line.split(",", -1);
-
-				if (!headerSkipped) {
-
-					columnCount = cells.length;
-
-					if (cells.length > 0) {
-						dto.setSelectedSortColumn(cleanText(cells[0]));
-					}
-
-					headerSkipped = true;
-					continue;
-				}
-
-				rowCount++;
-
-				uniqueRows.add(line.trim());
-
-				columnCount = Math.max(columnCount, cells.length);
-
-				for (String cell : cells) {
-
-					totalCells++;
-
-					String value = cell == null ? "" : cell.trim();
-
-					if (value.isEmpty()) {
-
-						nullCells++;
-
-					} else {
-
-						Double number = tryParseDouble(value);
-
-						if (number != null) {
-							numericSum += number;
-							numericCount++;
-						}
-					}
-				}
-			}
+			String headerLine = br.readLine();
 
 			br.close();
 
-			fillMetadata(dto, rowCount, columnCount, totalCells, nullCells, numericSum, numericCount,
-					uniqueRows.size());
+			if (headerLine == null || headerLine.trim().isEmpty()) {
+
+				dto.setColumnCount(0);
+				dto.setSelectedSortColumn("AUTO_DETECTED_FIRST_COLUMN");
+
+			} else {
+
+				String[] headers = headerLine.split(",", -1);
+
+				dto.setColumnCount(headers.length);
+
+				if (headers.length > 0 && headers[0] != null && !headers[0].trim().isEmpty()) {
+
+					dto.setSelectedSortColumn(headers[0].trim());
+
+				} else {
+
+					dto.setSelectedSortColumn("AUTO_DETECTED_FIRST_COLUMN");
+				}
+			}
+
+			dto.setRecordCount(0L);
+			dto.setNullPercentage(0.0);
+			dto.setDuplicatePercentage(0.0);
+			dto.setSkewnessValue(0.0);
+			dto.setDetectedPattern(DatasetPattern.UNKNOWN);
+			dto.setDataType("PENDING_ANALYSIS");
+			dto.setValue(0.0);
 
 			return dto;
 
 		} catch (Exception e) {
 
-			throw new ApiException("CSV analysis failed : " + e.getMessage());
+			throw new ApiException("CSV fast header read failed : " + e.getMessage());
 		}
 	}
 
-	private DatasetDto analyzeXlsx(MultipartFile file) {
+	private DatasetDto fastReadXlsxHeader(MultipartFile file) {
 
 		try {
 
@@ -355,128 +329,63 @@ public class DatasetServiceImpl implements DatasetService {
 
 			DataFormatter formatter = new DataFormatter();
 
-			int rowCount = 0;
-			int columnCount = 0;
+			int physicalRows = sheet.getPhysicalNumberOfRows();
 
-			int totalCells = 0;
-			int nullCells = 0;
+			Row headerRow = sheet.getRow(0);
 
-			double numericSum = 0.0;
-			int numericCount = 0;
+			if (headerRow == null) {
 
-			Set<String> uniqueRows = new HashSet<>();
+				dto.setColumnCount(0);
+				dto.setSelectedSortColumn("AUTO_DETECTED_FIRST_COLUMN");
 
-			boolean headerSkipped = false;
+			} else {
 
-			for (Row row : sheet) {
+				int columnCount = headerRow.getLastCellNum();
 
-				if (row == null) {
-					continue;
+				if (columnCount < 0) {
+					columnCount = 0;
 				}
 
-				int lastCellNumber = row.getLastCellNum();
+				dto.setColumnCount(columnCount);
 
-				if (lastCellNumber <= 0) {
-					continue;
-				}
+				if (columnCount > 0) {
 
-				columnCount = Math.max(columnCount, lastCellNumber);
+					String firstHeader = formatter.formatCellValue(headerRow.getCell(0)).trim();
 
-				if (!headerSkipped) {
+					if (firstHeader.isEmpty()) {
 
-					if (lastCellNumber > 0) {
-
-						String firstHeader = formatter.formatCellValue(row.getCell(0)).trim();
-
-						dto.setSelectedSortColumn(cleanText(firstHeader));
-					}
-
-					headerSkipped = true;
-					continue;
-				}
-
-				StringBuilder rowData = new StringBuilder();
-
-				boolean emptyRow = true;
-
-				for (int i = 0; i < lastCellNumber; i++) {
-
-					String cellValue = formatter.formatCellValue(row.getCell(i)).trim();
-
-					rowData.append(cellValue).append("|");
-
-					if (!cellValue.isEmpty()) {
-						emptyRow = false;
-					}
-				}
-
-				if (emptyRow) {
-					continue;
-				}
-
-				rowCount++;
-
-				uniqueRows.add(rowData.toString());
-
-				for (int i = 0; i < lastCellNumber; i++) {
-
-					totalCells++;
-
-					String cellValue = formatter.formatCellValue(row.getCell(i)).trim();
-
-					if (cellValue.isEmpty()) {
-
-						nullCells++;
+						dto.setSelectedSortColumn("AUTO_DETECTED_FIRST_COLUMN");
 
 					} else {
 
-						Double number = tryParseDouble(cellValue);
-
-						if (number != null) {
-							numericSum += number;
-							numericCount++;
-						}
+						dto.setSelectedSortColumn(firstHeader);
 					}
+
+				} else {
+
+					dto.setSelectedSortColumn("AUTO_DETECTED_FIRST_COLUMN");
 				}
 			}
 
 			workbook.close();
 
-			fillMetadata(dto, rowCount, columnCount, totalCells, nullCells, numericSum, numericCount,
-					uniqueRows.size());
+			long estimatedRows = physicalRows <= 0 ? 0L : physicalRows - 1L;
+
+			dto.setRecordCount(estimatedRows);
+
+			dto.setNullPercentage(0.0);
+			dto.setDuplicatePercentage(0.0);
+			dto.setSkewnessValue(0.0);
+			dto.setDetectedPattern(DatasetPattern.UNKNOWN);
+			dto.setDataType("PENDING_ANALYSIS");
+			dto.setValue(0.0);
 
 			return dto;
 
 		} catch (Exception e) {
 
-			throw new ApiException("XLSX analysis failed : " + e.getMessage());
+			throw new ApiException("XLSX fast header read failed : " + e.getMessage());
 		}
-	}
-
-	private void fillMetadata(DatasetDto dto, int rowCount, int columnCount, int totalCells, int nullCells,
-			double numericSum, int numericCount, int uniqueRowCount) {
-
-		dto.setRecordCount((long) rowCount);
-
-		dto.setColumnCount(columnCount);
-
-		double nullPercentage = totalCells == 0 ? 0.0 : (nullCells * 100.0) / totalCells;
-
-		double duplicatePercentage = rowCount == 0 ? 0.0 : ((rowCount - uniqueRowCount) * 100.0) / rowCount;
-
-		double value = numericCount == 0 ? 1.0 : numericSum / numericCount;
-
-		dto.setNullPercentage(nullPercentage);
-
-		dto.setDuplicatePercentage(duplicatePercentage);
-
-		dto.setValue(value);
-
-		dto.setDataType(numericCount > 0 ? "NUMERIC" : "TEXT");
-
-		dto.setSkewnessValue(0.0);
-
-		dto.setDetectedPattern(detectPattern(duplicatePercentage));
 	}
 
 	private void validateDatasetDto(DatasetDto dto) {
@@ -505,20 +414,6 @@ public class DatasetServiceImpl implements DatasetService {
 		}
 	}
 
-	private void rejectDuplicateUpload(String originalFileName, Long fileSizeBytes) {
-
-		if (originalFileName == null || fileSizeBytes == null) {
-			return;
-		}
-
-		boolean alreadyExists = datasetRepository.existsByOriginalFileNameAndFileSizeBytes(originalFileName,
-				fileSizeBytes);
-
-		if (alreadyExists) {
-			throw new ApiException("This dataset file is already uploaded. Duplicate insert stopped.");
-		}
-	}
-
 	private void normalizeDtoDefaults(DatasetDto dto) {
 
 		if (dto.getDatasetUniqueId() == null || dto.getDatasetUniqueId().trim().isEmpty()) {
@@ -544,7 +439,7 @@ public class DatasetServiceImpl implements DatasetService {
 
 		if (dto.getDataType() == null || dto.getDataType().trim().isEmpty()) {
 
-			dto.setDataType("UNKNOWN");
+			dto.setDataType("PENDING_ANALYSIS");
 		}
 
 		if (dto.getSelectedSortColumn() == null || dto.getSelectedSortColumn().trim().isEmpty()) {
@@ -554,6 +449,14 @@ public class DatasetServiceImpl implements DatasetService {
 
 		if (dto.getValue() == null) {
 			dto.setValue(0.0);
+		}
+
+		if (dto.getRecordCount() == null) {
+			dto.setRecordCount(0L);
+		}
+
+		if (dto.getColumnCount() == null) {
+			dto.setColumnCount(0);
 		}
 	}
 
@@ -600,15 +503,6 @@ public class DatasetServiceImpl implements DatasetService {
 		}
 	}
 
-	private DatasetPattern detectPattern(double duplicatePercentage) {
-
-		if (duplicatePercentage >= 30.0) {
-			return DatasetPattern.REPEATED_VALUES;
-		}
-
-		return DatasetPattern.UNKNOWN;
-	}
-
 	private String generateUniqueDatasetId(String datasetName) {
 
 		String safeName = datasetName == null ? "DATASET"
@@ -635,37 +529,6 @@ public class DatasetServiceImpl implements DatasetService {
 		} while (datasetRepository.existsByDatasetUniqueId(datasetUniqueId));
 
 		return datasetUniqueId;
-	}
-
-	private Double tryParseDouble(String value) {
-
-		try {
-
-			if (value == null || value.trim().isEmpty()) {
-				return null;
-			}
-
-			return Double.parseDouble(value.replace(",", "").trim());
-
-		} catch (Exception e) {
-
-			return null;
-		}
-	}
-
-	private String cleanText(String value) {
-
-		if (value == null) {
-			return null;
-		}
-
-		String trimmed = value.trim();
-
-		if (trimmed.isEmpty()) {
-			return null;
-		}
-
-		return trimmed;
 	}
 
 	private String removeExtension(String fileName) {
