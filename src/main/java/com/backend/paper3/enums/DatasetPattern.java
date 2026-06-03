@@ -1,22 +1,20 @@
-
 package com.backend.paper3.enums;
 
 public enum DatasetPattern {
 
-    RANDOM,
+    UNIFORM_RANDOM,
 
-    SORTED,
-
-    REVERSE_SORTED,
+    SKEWED,
 
     NEARLY_SORTED,
 
-    DUPLICATE_HEAVY,
+    REVERSE_SORTED,
 
-    UNIFORM_DISTRIBUTION,
+    REPEATED_VALUES,
 
-    GAUSSIAN_DISTRIBUTION,
+    ADVERSARIAL,
 
-    SKEWED_DISTRIBUTION
+    ZIPF_DISTRIBUTION,
+
+    UNKNOWN
 }
-

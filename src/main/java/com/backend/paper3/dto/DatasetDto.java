@@ -2,6 +2,8 @@ package com.backend.paper3.dto;
 
 import java.time.LocalDateTime;
 
+import com.backend.paper3.enums.DatasetPattern;
+
 import lombok.Getter;
 import lombok.Setter;
 
@@ -21,15 +23,23 @@ public class DatasetDto {
 
     private Long fileSizeBytes;
 
-    private Integer recordCount;
+    private Long recordCount;
 
     private Integer columnCount;
+
+    private String selectedSortColumn;
+
+    private String dataType;
+
+    private DatasetPattern detectedPattern;
 
     private Double value;
 
     private Double duplicatePercentage;
 
     private Double nullPercentage;
+
+    private Double skewnessValue;
 
     private Double sortednessScore;
 

@@ -18,9 +18,7 @@ public interface DatasetService {
 
     String deleteDataset(Long id);
 
-    // FILE METHODS
+    DatasetDto createFromCsv(MultipartFile file);
 
-    List<DatasetDto> createFromCsv(MultipartFile file);
-
-    List<DatasetDto> createFromXlsx(MultipartFile file);
+    DatasetDto createFromXlsx(MultipartFile file);
 }
