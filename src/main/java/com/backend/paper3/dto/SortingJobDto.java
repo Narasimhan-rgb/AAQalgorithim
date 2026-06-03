@@ -3,6 +3,7 @@ package com.backend.paper3.dto;
 import java.time.LocalDateTime;
 
 import com.backend.paper3.enums.SortingJobStatus;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import lombok.Getter;
 import lombok.Setter;
@@ -21,6 +22,8 @@ public class SortingJobDto {
 
     private String datasetUniqueId;
 
+    private String algorithm;
+
     private String requestedAlgorithm;
 
     private String recommendedAlgorithm;
@@ -35,9 +38,10 @@ public class SortingJobDto {
 
     private LocalDateTime completedAt;
 
-    private String errorMessage;
-
     private Long createdBy;
 
     private LocalDateTime createdAt;
+
+    @JsonIgnore
+    private String errorMessage;
 }
