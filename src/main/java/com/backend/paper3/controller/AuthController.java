@@ -1,6 +1,6 @@
 
 package com.backend.paper3.controller;
-
+import com.backend.paper3.dto.LoginResponseDto;
 import java.util.Collections;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -39,17 +39,15 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-
-    public ApiResponse<String>
-    login(
+    public ApiResponse<LoginResponseDto> login(
             @RequestBody AuthDto dto
     ) {
 
-        String response =
+        LoginResponseDto response =
                 authService.login(dto);
 
         return ApiResponse
-                .<String>builder()
+                .<LoginResponseDto>builder()
                 .success(true)
                 .results(response)
                 .errorCount(0)
