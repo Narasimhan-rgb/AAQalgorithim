@@ -1,14 +1,14 @@
-
-
 package com.backend.paper3.enums;
 
 public enum SortingJobStatus {
 
     PENDING,
 
-    STARTED,
+    ANALYZING,
 
     RUNNING,
+
+    BENCHMARKING,
 
     COMPLETED,
 
@@ -16,4 +16,3 @@ public enum SortingJobStatus {
 
     CANCELLED
 }
-
