@@ -1,26 +1,16 @@
-
-
-
 package com.backend.paper3.enums;
 
 public enum SortingAlgorithmType {
 
-    AAQ_SORT,
+    JAVA_BUILT_IN_SORT,
 
-    QUICK_SORT,
+    QUICKSORT,
 
-    MERGE_SORT,
+    MERGESORT,
 
-    HEAP_SORT,
+    HEAPSORT,
 
-    TIM_SORT,
+    PARALLEL_SORT,
 
-    INSERTION_SORT,
-
-    BUBBLE_SORT,
-
-    SELECTION_SORT,
-
-    COUNTING_SORT
+    ADAPTIVE_AMPLITUDE_QUICKSORT
 }
-
