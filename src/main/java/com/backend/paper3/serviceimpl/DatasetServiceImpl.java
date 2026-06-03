@@ -8,7 +8,13 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import java.io.FileInputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
 
+import com.backend.paper3.dto.DatasetPreviewDto;
 import org.apache.poi.ss.usermodel.DataFormatter;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
@@ -412,7 +418,206 @@ public class DatasetServiceImpl implements DatasetService {
 
 			throw new ApiException("Invalid file name");
 		}
-	}
+	}private DatasetPreviewDto basePreview(
+	        DatasetEntity entity
+			) {
+
+			    DatasetPreviewDto preview =
+			            new DatasetPreviewDto();
+
+			    preview.setDatasetId(
+			            entity.getId()
+			    );
+
+			    preview.setDatasetUniqueId(
+			            entity.getDatasetUniqueId()
+			    );
+
+			    preview.setDatasetName(
+			            entity.getDatasetName()
+			    );
+
+			    preview.setFileType(
+			            entity.getFileType()
+			    );
+
+			    return preview;
+			}
+	private DatasetPreviewDto previewCsv(
+	        DatasetEntity entity
+	) {
+
+	    try {
+
+	        DatasetPreviewDto preview =
+	                basePreview(entity);
+
+	        List<String> columns =
+	                new ArrayList<>();
+
+	        List<List<String>> rows =
+	                new ArrayList<>();
+
+	        BufferedReader br =
+	                new BufferedReader(
+	                        new InputStreamReader(
+	                                new FileInputStream(
+	                                        entity.getFilePath()
+	                                )
+	                        )
+	                );
+
+	        String line;
+	        int lineNumber = 0;
+
+	        while ((line = br.readLine()) != null) {
+
+	            String[] cells =
+	                    line.split(",", -1);
+
+	            if (lineNumber == 0) {
+
+	                for (String cell : cells) {
+	                    columns.add(
+	                            cell == null
+	                                    ? ""
+	                                    : cell.trim()
+	                    );
+	                }
+
+	            } else {
+
+	                List<String> row =
+	                        new ArrayList<>();
+
+	                for (String cell : cells) {
+	                    row.add(
+	                            cell == null
+	                                    ? ""
+	                                    : cell.trim()
+	                    );
+	                }
+
+	                rows.add(row);
+	            }
+
+	            lineNumber++;
+
+	            if (lineNumber > 10) {
+	                break;
+	            }
+	        }
+
+	        br.close();
+
+	        preview.setColumns(columns);
+	        preview.setRows(rows);
+
+	        return preview;
+
+	    } catch (Exception e) {
+
+	        throw new ApiException(
+	                "CSV preview failed : " + e.getMessage()
+	        );
+	    }
+	}private DatasetPreviewDto previewXlsx(
+	        DatasetEntity entity
+			) {
+
+			    try {
+
+			        DatasetPreviewDto preview =
+			                basePreview(entity);
+
+			        List<String> columns =
+			                new ArrayList<>();
+
+			        List<List<String>> rows =
+			                new ArrayList<>();
+
+			        Workbook workbook =
+			                new XSSFWorkbook(
+			                        new FileInputStream(
+			                                entity.getFilePath()
+			                        )
+			                );
+
+			        Sheet sheet =
+			                workbook.getSheetAt(0);
+
+			        DataFormatter formatter =
+			                new DataFormatter();
+
+			        int maxRows =
+			                Math.min(
+			                        sheet.getPhysicalNumberOfRows(),
+			                        11
+			                );
+
+			        for (int rowIndex = 0; rowIndex < maxRows; rowIndex++) {
+
+			            Row row =
+			                    sheet.getRow(rowIndex);
+
+			            if (row == null) {
+			                continue;
+			            }
+
+			            int lastCellNumber =
+			                    row.getLastCellNum();
+
+			            if (lastCellNumber < 0) {
+			                continue;
+			            }
+
+			            if (rowIndex == 0) {
+
+			                for (int cellIndex = 0; cellIndex < lastCellNumber; cellIndex++) {
+
+			                    columns.add(
+			                            formatter
+			                                    .formatCellValue(
+			                                            row.getCell(cellIndex)
+			                                    )
+			                                    .trim()
+			                    );
+			                }
+
+			            } else {
+
+			                List<String> rowValues =
+			                        new ArrayList<>();
+
+			                for (int cellIndex = 0; cellIndex < lastCellNumber; cellIndex++) {
+
+			                    rowValues.add(
+			                            formatter
+			                                    .formatCellValue(
+			                                            row.getCell(cellIndex)
+			                                    )
+			                                    .trim()
+			                    );
+			                }
+
+			                rows.add(rowValues);
+			            }
+			        }
+
+			        workbook.close();
+
+			        preview.setColumns(columns);
+			        preview.setRows(rows);
+
+			        return preview;
+
+			    } catch (Exception e) {
+
+			        throw new ApiException(
+			                "XLSX preview failed : " + e.getMessage()
+			        );
+			    }
+			}
 
 	private void normalizeDtoDefaults(DatasetDto dto) {
 
@@ -545,5 +750,57 @@ public class DatasetServiceImpl implements DatasetService {
 		}
 
 		return fileName.substring(0, index);
+	}
+	@Override
+	public DatasetPreviewDto previewDataset(
+	        Long id
+	) {
+
+	    DatasetEntity entity =
+	            datasetRepository
+	                    .findById(id)
+	                    .orElseThrow(
+	                            () -> new ApiException(
+	                                    "Dataset not found with id : " + id
+	                            )
+	                    );
+
+	    if (entity.getFilePath() == null
+	            || entity.getFilePath().trim().isEmpty()) {
+
+	        throw new ApiException(
+	                "Dataset file path is missing"
+	        );
+	    }
+
+	    Path path =
+	            Paths.get(entity.getFilePath());
+
+	    if (!Files.exists(path)) {
+	        throw new ApiException(
+	                "Dataset file not found in storage"
+	        );
+	    }
+
+	    String fileType =
+	            entity.getFileType();
+
+	    if (fileType == null) {
+	        throw new ApiException(
+	                "Dataset file type is missing"
+	        );
+	    }
+
+	    if (fileType.equalsIgnoreCase("CSV")) {
+	        return previewCsv(entity);
+	    }
+
+	    if (fileType.equalsIgnoreCase("XLSX")) {
+	        return previewXlsx(entity);
+	    }
+
+	    throw new ApiException(
+	            "Preview supported only for CSV and XLSX"
+	    );
 	}
 }
