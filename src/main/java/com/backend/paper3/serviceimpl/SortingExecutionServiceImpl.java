@@ -1,18 +1,17 @@
 package com.backend.paper3.serviceimpl;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import com.backend.paper3.algorithm.SortingAlgorithmResult;
+import com.backend.paper3.algorithm.SortingEngine;
 import com.backend.paper3.dto.SortingRunRequestDto;
 import com.backend.paper3.dto.SortingRunResultDto;
 import com.backend.paper3.entity.DatasetEntity;
 import com.backend.paper3.entity.SortingJobEntity;
-import com.backend.paper3.enums.SortingAlgorithmType;
 import com.backend.paper3.enums.SortingJobStatus;
 import com.backend.paper3.exception.ApiException;
 import com.backend.paper3.repository.DatasetRepository;
@@ -84,11 +83,6 @@ public class SortingExecutionServiceImpl
 
         try {
 
-            String algorithm =
-                    resolveAlgorithm(
-                            job.getRequestedAlgorithm()
-                    );
-
             List<String> values =
                     DatasetColumnReaderUtil.readColumnValues(
                             dataset.getFilePath(),
@@ -96,19 +90,14 @@ public class SortingExecutionServiceImpl
                             job.getSelectedColumn()
                     );
 
-            long startTime =
-                    System.nanoTime();
+            SortingEngine sortingEngine =
+                    new SortingEngine();
 
-            List<String> sortedValues =
-                    new ArrayList<>(values);
-
-            Collections.sort(sortedValues);
-
-            long endTime =
-                    System.nanoTime();
-
-            long executionTimeMs =
-                    (endTime - startTime) / 1_000_000;
+            SortingAlgorithmResult algorithmResult =
+                    sortingEngine.execute(
+                            values,
+                            job.getRequestedAlgorithm()
+                    );
 
             LocalDateTime completedAt =
                     LocalDateTime.now();
@@ -134,54 +123,26 @@ public class SortingExecutionServiceImpl
             return buildResult(
                     job,
                     dataset,
-                    algorithm,
-                    sortedValues,
-                    executionTimeMs,
+                    algorithmResult,
                     startedAt,
                     completedAt
             );
 
         } catch (ApiException e) {
 
-            job.setStatus(
-                    SortingJobStatus.FAILED
-            );
-
-            job.setProgressPercentage(
-                    0
-            );
-
-            job.setErrorMessage(
+            markJobFailed(
+                    job,
                     e.getMessage()
             );
-
-            job.setCompletedAt(
-                    LocalDateTime.now()
-            );
-
-            sortingJobRepository.save(job);
 
             throw e;
 
         } catch (Exception e) {
 
-            job.setStatus(
-                    SortingJobStatus.FAILED
-            );
-
-            job.setProgressPercentage(
-                    0
-            );
-
-            job.setErrorMessage(
+            markJobFailed(
+                    job,
                     e.getMessage()
             );
-
-            job.setCompletedAt(
-                    LocalDateTime.now()
-            );
-
-            sortingJobRepository.save(job);
 
             throw new ApiException(
                     "Sorting execution failed : " + e.getMessage()
@@ -189,52 +150,34 @@ public class SortingExecutionServiceImpl
         }
     }
 
-    private String resolveAlgorithm(
-            String requestedAlgorithm
+    private void markJobFailed(
+            SortingJobEntity job,
+            String errorMessage
     ) {
 
-        if (requestedAlgorithm == null
-                || requestedAlgorithm.trim().isEmpty()) {
-
-            return SortingAlgorithmType
-                    .JAVA_BUILT_IN_SORT
-                    .name();
-        }
-
-        String algorithm =
-                requestedAlgorithm
-                        .trim()
-                        .toUpperCase();
-
-        if (algorithm.equals(
-                SortingAlgorithmType.ADAPTIVE_AMPLITUDE_QUICKSORT.name()
-        )) {
-
-            return SortingAlgorithmType
-                    .JAVA_BUILT_IN_SORT
-                    .name();
-        }
-
-        if (algorithm.equals(
-                SortingAlgorithmType.JAVA_BUILT_IN_SORT.name()
-        )) {
-
-            return SortingAlgorithmType
-                    .JAVA_BUILT_IN_SORT
-                    .name();
-        }
-
-        throw new ApiException(
-                "Only JAVA_BUILT_IN_SORT is executable in this module. AAQ comes in next module."
+        job.setStatus(
+                SortingJobStatus.FAILED
         );
+
+        job.setProgressPercentage(
+                0
+        );
+
+        job.setErrorMessage(
+                errorMessage
+        );
+
+        job.setCompletedAt(
+                LocalDateTime.now()
+        );
+
+        sortingJobRepository.save(job);
     }
 
     private SortingRunResultDto buildResult(
             SortingJobEntity job,
             DatasetEntity dataset,
-            String algorithm,
-            List<String> sortedValues,
-            long executionTimeMs,
+            SortingAlgorithmResult algorithmResult,
             LocalDateTime startedAt,
             LocalDateTime completedAt
     ) {
@@ -263,7 +206,7 @@ public class SortingExecutionServiceImpl
         );
 
         result.setAlgorithm(
-                algorithm
+                algorithmResult.getAlgorithmName()
         );
 
         result.setSelectedColumn(
@@ -271,11 +214,19 @@ public class SortingExecutionServiceImpl
         );
 
         result.setTotalValuesSorted(
-                (long) sortedValues.size()
+                algorithmResult.getInputSize()
         );
 
         result.setExecutionTimeMs(
-                executionTimeMs
+                algorithmResult.getExecutionTimeMs()
+        );
+
+        result.setComparisonCount(
+                algorithmResult.getComparisonCount()
+        );
+
+        result.setSwapCount(
+                algorithmResult.getSwapCount()
         );
 
         result.setStatus(
@@ -289,6 +240,9 @@ public class SortingExecutionServiceImpl
         result.setCompletedAt(
                 completedAt
         );
+
+        List<String> sortedValues =
+                algorithmResult.getSortedValues();
 
         int previewLimit =
                 Math.min(

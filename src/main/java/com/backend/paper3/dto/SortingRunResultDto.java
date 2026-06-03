@@ -30,6 +30,10 @@ public class SortingRunResultDto {
 
     private Long executionTimeMs;
 
+    private Long comparisonCount;
+
+    private Long swapCount;
+
     private SortingJobStatus status;
 
     private LocalDateTime startedAt;
