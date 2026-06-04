@@ -1,5 +1,9 @@
 package com.backend.paper3.serviceimpl;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -10,14 +14,19 @@ import com.backend.paper3.dto.AlgorithmRecommendationDto;
 import com.backend.paper3.dto.BenchmarkComparisonSummaryDto;
 import com.backend.paper3.dto.BenchmarkResultDto;
 import com.backend.paper3.dto.QuantumAaqMetricsDto;
+import com.backend.paper3.dto.ReportGeneratedDto;
 import com.backend.paper3.dto.ReportSummaryDto;
 import com.backend.paper3.entity.AlgorithmRecommendationEntity;
 import com.backend.paper3.entity.DatasetEntity;
 import com.backend.paper3.entity.QuantumAaqMetricsEntity;
+import com.backend.paper3.entity.ReportEntity;
+import com.backend.paper3.entity.SortingJobEntity;
 import com.backend.paper3.exception.ApiException;
 import com.backend.paper3.repository.AlgorithmRecommendationRepository;
 import com.backend.paper3.repository.DatasetRepository;
 import com.backend.paper3.repository.QuantumAaqMetricsRepository;
+import com.backend.paper3.repository.ReportRepository;
+import com.backend.paper3.repository.SortingJobRepository;
 import com.backend.paper3.service.BenchmarkComparisonService;
 import com.backend.paper3.service.ReportService;
 
@@ -36,6 +45,12 @@ public class ReportServiceImpl
 
     @Autowired
     private BenchmarkComparisonService benchmarkComparisonService;
+
+    @Autowired
+    private SortingJobRepository sortingJobRepository;
+
+    @Autowired
+    private ReportRepository reportRepository;
 
     @Override
     public ReportSummaryDto getDatasetReport(
@@ -125,6 +140,98 @@ public class ReportServiceImpl
         );
 
         return report;
+    }
+
+    @Override
+    public ReportGeneratedDto generateReportForJob(
+            Long jobId
+    ) {
+
+        if (jobId == null) {
+            throw new ApiException(
+                    "Job id is required"
+            );
+        }
+
+        SortingJobEntity job =
+                sortingJobRepository
+                        .findById(jobId)
+                        .orElseThrow(
+                                () -> new ApiException(
+                                        "Sorting job not found with id : "
+                                                + jobId
+                                )
+                        );
+
+        if (job.getDatasetId() == null) {
+            throw new ApiException(
+                    "Dataset id not found for job id : "
+                            + jobId
+            );
+        }
+
+        ReportSummaryDto summary =
+                getDatasetReport(
+                        job.getDatasetId()
+                );
+
+        String reportName =
+                "AAQ_REPORT_JOB_" + job.getId();
+
+        String reportType =
+                "DATASET_SUMMARY";
+
+        String reportText =
+                buildReportText(
+                        summary,
+                        job
+                );
+
+        String reportFilePath =
+                saveReportFile(
+                        reportName,
+                        reportText
+                );
+
+        ReportEntity entity =
+                new ReportEntity();
+
+        entity.setJobId(
+                job.getId()
+        );
+
+        entity.setDatasetId(
+                job.getDatasetId()
+        );
+
+        entity.setReportName(
+                reportName
+        );
+
+        entity.setReportType(
+                reportType
+        );
+
+        entity.setReportFilePath(
+                reportFilePath
+        );
+
+        entity.setCreatedBy(
+                null
+        );
+
+        entity.setCreatedAt(
+                LocalDateTime.now()
+        );
+
+        ReportEntity savedEntity =
+                reportRepository.save(
+                        entity
+                );
+
+        return mapReportGeneratedToDto(
+                savedEntity
+        );
     }
 
     private void mapDatasetDetails(
@@ -280,6 +387,244 @@ public class ReportServiceImpl
         );
     }
 
+    private String saveReportFile(
+            String reportName,
+            String reportText
+    ) {
+
+        try {
+
+            Path reportsDirectory =
+                    Path.of(
+                            "reports",
+                            "generated"
+                    );
+
+            Files.createDirectories(
+                    reportsDirectory
+            );
+
+            Path reportFile =
+                    reportsDirectory.resolve(
+                            reportName + ".txt"
+                    );
+
+            Files.writeString(
+                    reportFile,
+                    reportText,
+                    StandardCharsets.UTF_8
+            );
+
+            return reportFile
+                    .toAbsolutePath()
+                    .toString();
+
+        } catch (IOException e) {
+
+            throw new ApiException(
+                    "Failed to save report file : "
+                            + e.getMessage()
+            );
+        }
+    }
+
+    private String buildReportText(
+            ReportSummaryDto summary,
+            SortingJobEntity job
+    ) {
+
+        StringBuilder builder =
+                new StringBuilder();
+
+        builder.append("AAQ Dataset Report\n");
+        builder.append("==================\n\n");
+
+        builder.append("Job ID: ")
+                .append(job.getId())
+                .append("\n");
+
+        builder.append("Job Unique ID: ")
+                .append(job.getJobUniqueId())
+                .append("\n");
+
+        builder.append("Requested Algorithm: ")
+                .append(job.getRequestedAlgorithm())
+                .append("\n");
+
+        builder.append("Selected Column: ")
+                .append(job.getSelectedColumn())
+                .append("\n");
+
+        builder.append("Job Status: ")
+                .append(job.getStatus())
+                .append("\n\n");
+
+        builder.append("Dataset Details\n");
+        builder.append("---------------\n");
+
+        builder.append("Dataset ID: ")
+                .append(summary.getDatasetId())
+                .append("\n");
+
+        builder.append("Dataset Name: ")
+                .append(summary.getDatasetName())
+                .append("\n");
+
+        builder.append("Dataset Unique ID: ")
+                .append(summary.getDatasetUniqueId())
+                .append("\n");
+
+        builder.append("Original File Name: ")
+                .append(summary.getOriginalFileName())
+                .append("\n");
+
+        builder.append("File Type: ")
+                .append(summary.getFileType())
+                .append("\n");
+
+        builder.append("Record Count: ")
+                .append(summary.getRecordCount())
+                .append("\n");
+
+        builder.append("Column Count: ")
+                .append(summary.getColumnCount())
+                .append("\n");
+
+        builder.append("Detected Pattern: ")
+                .append(summary.getDetectedPattern())
+                .append("\n");
+
+        builder.append("Duplicate Percentage: ")
+                .append(summary.getDuplicatePercentage())
+                .append("\n");
+
+        builder.append("Null Percentage: ")
+                .append(summary.getNullPercentage())
+                .append("\n");
+
+        builder.append("Skewness Value: ")
+                .append(summary.getSkewnessValue())
+                .append("\n");
+
+        builder.append("Sortedness Score: ")
+                .append(summary.getSortednessScore())
+                .append("\n\n");
+
+        builder.append("Recommendation\n");
+        builder.append("--------------\n");
+
+        if (summary.getLatestRecommendation() != null) {
+
+            builder.append("Recommended Algorithm: ")
+                    .append(summary.getLatestRecommendation()
+                            .getRecommendedAlgorithm())
+                    .append("\n");
+
+            builder.append("Confidence Score: ")
+                    .append(summary.getLatestRecommendation()
+                            .getConfidenceScore())
+                    .append("\n");
+
+            builder.append("Reason: ")
+                    .append(summary.getLatestRecommendation()
+                            .getRecommendationReason())
+                    .append("\n\n");
+
+        } else {
+
+            builder.append("No recommendation available.\n\n");
+        }
+
+        builder.append("Benchmark Result\n");
+        builder.append("----------------\n");
+
+        if (summary.getBenchmarkComparison() != null) {
+
+            builder.append("Best Algorithm: ")
+                    .append(summary.getBenchmarkComparison()
+                            .getBestAlgorithm())
+                    .append("\n");
+
+            builder.append("Best Execution Time: ")
+                    .append(summary.getBenchmarkComparison()
+                            .getBestExecutionTimeMs())
+                    .append(" ms\n");
+
+            builder.append("AAQ Algorithm: ")
+                    .append(summary.getBenchmarkComparison()
+                            .getAaqAlgorithm())
+                    .append("\n");
+
+            builder.append("AAQ Execution Time: ")
+                    .append(summary.getBenchmarkComparison()
+                            .getAaqExecutionTimeMs())
+                    .append(" ms\n");
+
+            builder.append("AAQ Throughput: ")
+                    .append(summary.getBenchmarkComparison()
+                            .getAaqThroughputRecordsPerSecond())
+                    .append(" records/sec\n\n");
+
+        } else {
+
+            builder.append("No benchmark comparison available.\n\n");
+        }
+
+        builder.append("Quantum AAQ Metrics\n");
+        builder.append("-------------------\n");
+
+        if (summary.getLatestQuantumMetrics() != null) {
+
+            builder.append("Pivot Selection Count: ")
+                    .append(summary.getLatestQuantumMetrics()
+                            .getPivotSelectionCount())
+                    .append("\n");
+
+            builder.append("Insertion Sort Usage Count: ")
+                    .append(summary.getLatestQuantumMetrics()
+                            .getInsertionSortUsageCount())
+                    .append("\n");
+
+            builder.append("Heap Fallback Count: ")
+                    .append(summary.getLatestQuantumMetrics()
+                            .getHeapFallbackCount())
+                    .append("\n");
+
+            builder.append("Partition Count: ")
+                    .append(summary.getLatestQuantumMetrics()
+                            .getPartitionCount())
+                    .append("\n");
+
+            builder.append("Average Partition Imbalance: ")
+                    .append(summary.getLatestQuantumMetrics()
+                            .getAveragePartitionImbalance())
+                    .append("\n");
+
+            builder.append("Max Partition Imbalance: ")
+                    .append(summary.getLatestQuantumMetrics()
+                            .getMaxPartitionImbalance())
+                    .append("\n\n");
+
+        } else {
+
+            builder.append("No AAQ quantum metrics available.\n\n");
+        }
+
+        builder.append("Report Status: ")
+                .append(summary.getReportStatus())
+                .append("\n");
+
+        builder.append("Report Message: ")
+                .append(summary.getReportMessage())
+                .append("\n");
+
+        builder.append("Generated At: ")
+                .append(LocalDateTime.now())
+                .append("\n");
+
+        return builder.toString();
+    }
+
     private AlgorithmRecommendationDto mapRecommendationToDto(
             AlgorithmRecommendationEntity entity
     ) {
@@ -407,6 +752,48 @@ public class ReportServiceImpl
 
         dto.setMaxPartitionImbalance(
                 entity.getMaxPartitionImbalance()
+        );
+
+        dto.setCreatedAt(
+                entity.getCreatedAt()
+        );
+
+        return dto;
+    }
+
+    private ReportGeneratedDto mapReportGeneratedToDto(
+            ReportEntity entity
+    ) {
+
+        ReportGeneratedDto dto =
+                new ReportGeneratedDto();
+
+        dto.setId(
+                entity.getId()
+        );
+
+        dto.setJobId(
+                entity.getJobId()
+        );
+
+        dto.setDatasetId(
+                entity.getDatasetId()
+        );
+
+        dto.setReportName(
+                entity.getReportName()
+        );
+
+        dto.setReportType(
+                entity.getReportType()
+        );
+
+        dto.setReportFilePath(
+                entity.getReportFilePath()
+        );
+
+        dto.setCreatedBy(
+                entity.getCreatedBy()
         );
 
         dto.setCreatedAt(
