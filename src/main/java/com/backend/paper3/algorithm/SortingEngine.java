@@ -63,15 +63,10 @@ public class SortingEngine {
             return new ParallelSortAlgorithm();
         }
 
-        /*
-         * AAQ is not implemented yet.
-         * For now, when job asks for AAQ, we temporarily run Java built-in sort.
-         * Later we will replace this with AdaptiveAmplitudeQuickSort.
-         */
         if (algorithmName.equals(
                 SortingAlgorithmType.ADAPTIVE_AMPLITUDE_QUICKSORT.name()
         )) {
-            return new JavaBuiltInSortAlgorithm();
+            return new AdaptiveAmplitudeQuickSortAlgorithm();
         }
 
         throw new ApiException(
