@@ -5,9 +5,11 @@ import java.util.Collections;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.backend.paper3.dto.ReportGeneratedDto;
 import com.backend.paper3.dto.ReportSummaryDto;
 import com.backend.paper3.response.ApiResponse;
 import com.backend.paper3.service.ReportService;
@@ -31,6 +33,25 @@ public class ReportController {
 
         return ApiResponse
                 .<ReportSummaryDto>builder()
+                .success(true)
+                .results(response)
+                .errorCount(0)
+                .errors(Collections.emptyList())
+                .build();
+    }
+
+    @PostMapping("/job/{jobId}/generate")
+    public ApiResponse<ReportGeneratedDto> generateReportForJob(
+            @PathVariable Long jobId
+    ) {
+
+        ReportGeneratedDto response =
+                reportService.generateReportForJob(
+                        jobId
+                );
+
+        return ApiResponse
+                .<ReportGeneratedDto>builder()
                 .success(true)
                 .results(response)
                 .errorCount(0)

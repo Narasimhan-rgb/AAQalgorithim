@@ -1,0 +1,50 @@
+AAQ Dataset Report
+==================
+
+Job ID: 3
+Job Unique ID: JOB-AAQ_DATASET-20260603151730-916BC40A
+Requested Algorithm: ADAPTIVE_AMPLITUDE_QUICKSORT
+Selected Column: sample_id
+Job Status: COMPLETED
+
+Dataset Details
+---------------
+Dataset ID: 104822
+Dataset Name: aaq_dataset
+Dataset Unique ID: DS-AAQ_DATASET-20260603120705-3EFA6CAE
+Original File Name: aaq_dataset.xlsx
+File Type: XLSX
+Record Count: 83000
+Column Count: 10
+Detected Pattern: UNKNOWN
+Duplicate Percentage: 0.0
+Null Percentage: 0.0
+Skewness Value: 0.0
+Sortedness Score: 8332267.075308394
+
+Recommendation
+--------------
+Recommended Algorithm: ADAPTIVE_AMPLITUDE_QUICKSORT
+Confidence Score: 72.0
+Reason: AAQ is recommended as the proposed algorithm for general validation and benchmarking.
+
+Benchmark Result
+----------------
+Best Algorithm: JAVA_BUILT_IN_SORT
+Best Execution Time: 13 ms
+AAQ Algorithm: ADAPTIVE_AMPLITUDE_QUICKSORT
+AAQ Execution Time: 237 ms
+AAQ Throughput: 350210.97046413505 records/sec
+
+Quantum AAQ Metrics
+-------------------
+Pivot Selection Count: 376
+Insertion Sort Usage Count: 0
+Heap Fallback Count: 13
+Partition Count: 376
+Average Partition Imbalance: 0.990987667808721
+Max Partition Imbalance: 1.0
+
+Report Status: READY
+Report Message: Dataset report is complete with recommendation, benchmark comparison, and AAQ quantum metrics.
+Generated At: 2026-06-04T15:05:03.398862400
