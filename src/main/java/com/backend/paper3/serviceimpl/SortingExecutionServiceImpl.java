@@ -1,5 +1,5 @@
 package com.backend.paper3.serviceimpl;
-
+import com.backend.paper3.service.BenchmarkResultService;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -28,6 +28,8 @@ public class SortingExecutionServiceImpl
 
     @Autowired
     private DatasetRepository datasetRepository;
+    @Autowired
+    private BenchmarkResultService benchmarkResultService;
 
     @Override
     public SortingRunResultDto runSorting(
@@ -120,13 +122,18 @@ public class SortingExecutionServiceImpl
 
             sortingJobRepository.save(job);
 
-            return buildResult(
-                    job,
-                    dataset,
-                    algorithmResult,
-                    startedAt,
-                    completedAt
-            );
+            SortingRunResultDto result =
+                    buildResult(
+                            job,
+                            dataset,
+                            algorithmResult,
+                            startedAt,
+                            completedAt
+                    );
+
+            benchmarkResultService.saveSortingRunResult(result);
+
+            return result;
 
         } catch (ApiException e) {
 
