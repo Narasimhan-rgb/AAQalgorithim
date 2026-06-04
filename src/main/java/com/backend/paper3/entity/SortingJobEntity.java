@@ -44,6 +44,20 @@ public class SortingJobEntity {
 
     @Column(name = "progress_percentage")
     private Integer progressPercentage;
+    @Column(name = "execution_time_ms")
+    private Double executionTimeMs;
+
+    @Column(name = "memory_usage_mb")
+    private Double memoryUsageMb;
+
+    @Column(name = "cpu_usage_percentage")
+    private Double cpuUsagePercentage;
+
+    @Column(name = "throughput_records_per_second")
+    private Double throughputRecordsPerSecond;
+
+    @Column(name = "total_records")
+    private Long totalRecords;
 
     @Column(name = "selected_column")
     private String selectedColumn;

@@ -20,4 +20,6 @@ public class SortingAlgorithmResult {
     private Long inputSize;
 
     private String algorithmName;
+
+    private AAQMetrics aaqMetrics;
 }
