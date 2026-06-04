@@ -30,6 +30,12 @@ public class BenchmarkResultServiceImpl
             throw new ApiException("Sorting result is required");
         }
 
+        Double throughput =
+                calculateThroughput(
+                        result.getTotalValuesSorted(),
+                        result.getExecutionTimeMs()
+                );
+
         BenchmarkResultEntity entity =
                 new BenchmarkResultEntity();
 
@@ -78,16 +84,41 @@ public class BenchmarkResultServiceImpl
         );
 
         entity.setThroughputRecordsPerSecond(
-                calculateThroughput(
-                        result.getTotalValuesSorted(),
-                        result.getExecutionTimeMs()
-                )
+                throughput
         );
 
         entity.setStatus(
                 result.getStatus() == null
                         ? "UNKNOWN"
                         : result.getStatus().name()
+        );
+
+        entity.setBenchmarkExecutionTimeMs(
+                result.getExecutionTimeMs() == null
+                        ? 0.0
+                        : result.getExecutionTimeMs().doubleValue()
+        );
+
+        entity.setBenchmarkMemoryUsageMb(
+                result.getBenchmarkMemoryUsageMb() == null
+                        ? 0.0
+                        : result.getBenchmarkMemoryUsageMb()
+        );
+
+        entity.setBenchmarkCpuUsage(
+                result.getBenchmarkCpuUsage() == null
+                        ? 0.0
+                        : result.getBenchmarkCpuUsage()
+        );
+
+        entity.setBenchmarkThroughput(
+                throughput
+        );
+
+        entity.setImprovementPercentage(
+                result.getImprovementPercentage() == null
+                        ? 0.0
+                        : result.getImprovementPercentage()
         );
 
         entity.setCreatedAt(
@@ -164,21 +195,85 @@ public class BenchmarkResultServiceImpl
         BenchmarkResultDto dto =
                 new BenchmarkResultDto();
 
-        dto.setId(entity.getId());
-        dto.setJobId(entity.getJobId());
-        dto.setJobUniqueId(entity.getJobUniqueId());
-        dto.setDatasetId(entity.getDatasetId());
-        dto.setDatasetName(entity.getDatasetName());
-        dto.setDatasetUniqueId(entity.getDatasetUniqueId());
-        dto.setAlgorithm(entity.getAlgorithm());
-        dto.setSelectedColumn(entity.getSelectedColumn());
-        dto.setInputSize(entity.getInputSize());
-        dto.setExecutionTimeMs(entity.getExecutionTimeMs());
-        dto.setComparisonCount(entity.getComparisonCount());
-        dto.setSwapCount(entity.getSwapCount());
-        dto.setThroughputRecordsPerSecond(entity.getThroughputRecordsPerSecond());
-        dto.setStatus(entity.getStatus());
-        dto.setCreatedAt(entity.getCreatedAt());
+        dto.setId(
+                entity.getId()
+        );
+
+        dto.setJobId(
+                entity.getJobId()
+        );
+
+        dto.setJobUniqueId(
+                entity.getJobUniqueId()
+        );
+
+        dto.setDatasetId(
+                entity.getDatasetId()
+        );
+
+        dto.setDatasetName(
+                entity.getDatasetName()
+        );
+
+        dto.setDatasetUniqueId(
+                entity.getDatasetUniqueId()
+        );
+
+        dto.setAlgorithm(
+                entity.getAlgorithm()
+        );
+
+        dto.setSelectedColumn(
+                entity.getSelectedColumn()
+        );
+
+        dto.setInputSize(
+                entity.getInputSize()
+        );
+
+        dto.setExecutionTimeMs(
+                entity.getExecutionTimeMs()
+        );
+
+        dto.setComparisonCount(
+                entity.getComparisonCount()
+        );
+
+        dto.setSwapCount(
+                entity.getSwapCount()
+        );
+
+        dto.setThroughputRecordsPerSecond(
+                entity.getThroughputRecordsPerSecond()
+        );
+
+        dto.setStatus(
+                entity.getStatus()
+        );
+
+        dto.setBenchmarkExecutionTimeMs(
+                entity.getBenchmarkExecutionTimeMs()
+        );
+
+        dto.setBenchmarkMemoryUsageMb(
+                entity.getBenchmarkMemoryUsageMb()
+        );
+
+        dto.setBenchmarkCpuUsage(
+                entity.getBenchmarkCpuUsage()
+        );
+
+        dto.setBenchmarkThroughput(
+                entity.getBenchmarkThroughput()
+        );
+
+        dto.setImprovementPercentage(
+                entity.getImprovementPercentage()
+        );
+
+        dto.setCreatedAt(
+                entity.getCreatedAt()
+        );
 
         return dto;
     }

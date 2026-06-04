@@ -13,10 +13,10 @@ import lombok.Getter;
 import lombok.Setter;
 
 @Entity
-@Table(name = "benchmark_results")
+@Table(name = "quantum_aaq_metrics")
 @Getter
 @Setter
-public class BenchmarkResultEntity {
+public class QuantumAaqMetricsEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -40,41 +40,29 @@ public class BenchmarkResultEntity {
     @Column(name = "algorithm")
     private String algorithm;
 
-    @Column(name = "selected_column")
-    private String selectedColumn;
-
-    @Column(name = "input_size")
-    private Long inputSize;
-
-    @Column(name = "execution_time_ms")
-    private Long executionTimeMs;
-
     @Column(name = "comparison_count")
     private Long comparisonCount;
 
     @Column(name = "swap_count")
     private Long swapCount;
 
-    @Column(name = "throughput_records_per_second")
-    private Double throughputRecordsPerSecond;
+    @Column(name = "pivot_selection_count")
+    private Long pivotSelectionCount;
 
-    @Column(name = "status")
-    private String status;
+    @Column(name = "insertion_sort_usage_count")
+    private Long insertionSortUsageCount;
 
-    @Column(name = "benchmark_execution_time_ms")
-    private Double benchmarkExecutionTimeMs;
+    @Column(name = "heap_fallback_count")
+    private Long heapFallbackCount;
 
-    @Column(name = "benchmark_memory_usage_mb")
-    private Double benchmarkMemoryUsageMb;
+    @Column(name = "partition_count")
+    private Long partitionCount;
 
-    @Column(name = "benchmark_cpu_usage")
-    private Double benchmarkCpuUsage;
+    @Column(name = "average_partition_imbalance")
+    private Double averagePartitionImbalance;
 
-    @Column(name = "benchmark_throughput")
-    private Double benchmarkThroughput;
-
-    @Column(name = "improvement_percentage")
-    private Double improvementPercentage;
+    @Column(name = "max_partition_imbalance")
+    private Double maxPartitionImbalance;
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;

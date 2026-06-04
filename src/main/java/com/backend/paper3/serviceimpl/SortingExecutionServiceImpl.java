@@ -1,11 +1,13 @@
 package com.backend.paper3.serviceimpl;
-import com.backend.paper3.service.BenchmarkResultService;
+
+import java.lang.management.ManagementFactory;
 import java.time.LocalDateTime;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import com.backend.paper3.algorithm.AAQMetrics;
 import com.backend.paper3.algorithm.SortingAlgorithmResult;
 import com.backend.paper3.algorithm.SortingEngine;
 import com.backend.paper3.dto.SortingRunRequestDto;
@@ -16,6 +18,8 @@ import com.backend.paper3.enums.SortingJobStatus;
 import com.backend.paper3.exception.ApiException;
 import com.backend.paper3.repository.DatasetRepository;
 import com.backend.paper3.repository.SortingJobRepository;
+import com.backend.paper3.service.BenchmarkResultService;
+import com.backend.paper3.service.QuantumAaqMetricsService;
 import com.backend.paper3.service.SortingExecutionService;
 import com.backend.paper3.util.DatasetColumnReaderUtil;
 
@@ -28,16 +32,24 @@ public class SortingExecutionServiceImpl
 
     @Autowired
     private DatasetRepository datasetRepository;
+
     @Autowired
     private BenchmarkResultService benchmarkResultService;
+
+    @Autowired
+    private QuantumAaqMetricsService quantumAaqMetricsService;
 
     @Override
     public SortingRunResultDto runSorting(
             SortingRunRequestDto request
     ) {
 
-        if (request == null || request.getJobId() == null) {
-            throw new ApiException("Job id is required");
+        if (request == null
+                || request.getJobId() == null) {
+
+            throw new ApiException(
+                    "Job id is required"
+            );
         }
 
         SortingJobEntity job =
@@ -95,10 +107,40 @@ public class SortingExecutionServiceImpl
             SortingEngine sortingEngine =
                     new SortingEngine();
 
+            long memoryBefore =
+                    getUsedMemoryBytes();
+
+            double cpuBefore =
+                    getProcessCpuUsage();
+
             SortingAlgorithmResult algorithmResult =
                     sortingEngine.execute(
                             values,
                             job.getRequestedAlgorithm()
+                    );
+
+            long memoryAfter =
+                    getUsedMemoryBytes();
+
+            double cpuAfter =
+                    getProcessCpuUsage();
+
+            double memoryUsageMb =
+                    Math.max(
+                            0.0,
+                            (memoryAfter - memoryBefore)
+                                    / (1024.0 * 1024.0)
+                    );
+
+            double cpuUsage =
+                    cpuAfter >= 0
+                            ? cpuAfter
+                            : cpuBefore;
+
+            Double throughput =
+                    calculateThroughput(
+                            algorithmResult.getInputSize(),
+                            algorithmResult.getExecutionTimeMs()
                     );
 
             LocalDateTime completedAt =
@@ -120,6 +162,28 @@ public class SortingExecutionServiceImpl
                     null
             );
 
+            job.setExecutionTimeMs(
+                    algorithmResult.getExecutionTimeMs() == null
+                            ? 0.0
+                            : algorithmResult.getExecutionTimeMs().doubleValue()
+            );
+
+            job.setMemoryUsageMb(
+                    memoryUsageMb
+            );
+
+            job.setCpuUsagePercentage(
+                    cpuUsage
+            );
+
+            job.setThroughputRecordsPerSecond(
+                    throughput
+            );
+
+            job.setTotalRecords(
+                    algorithmResult.getInputSize()
+            );
+
             sortingJobRepository.save(job);
 
             SortingRunResultDto result =
@@ -128,10 +192,26 @@ public class SortingExecutionServiceImpl
                             dataset,
                             algorithmResult,
                             startedAt,
-                            completedAt
+                            completedAt,
+                            memoryUsageMb,
+                            cpuUsage,
+                            throughput
                     );
 
-            benchmarkResultService.saveSortingRunResult(result);
+            benchmarkResultService.saveSortingRunResult(
+                    result
+            );
+
+            AAQMetrics aaqMetrics =
+                    algorithmResult.getAaqMetrics();
+
+            if (aaqMetrics != null) {
+
+                quantumAaqMetricsService.saveAaqMetrics(
+                        result,
+                        aaqMetrics
+                );
+            }
 
             return result;
 
@@ -152,7 +232,8 @@ public class SortingExecutionServiceImpl
             );
 
             throw new ApiException(
-                    "Sorting execution failed : " + e.getMessage()
+                    "Sorting execution failed : "
+                            + e.getMessage()
             );
         }
     }
@@ -186,7 +267,10 @@ public class SortingExecutionServiceImpl
             DatasetEntity dataset,
             SortingAlgorithmResult algorithmResult,
             LocalDateTime startedAt,
-            LocalDateTime completedAt
+            LocalDateTime completedAt,
+            Double memoryUsageMb,
+            Double cpuUsage,
+            Double throughput
     ) {
 
         SortingRunResultDto result =
@@ -236,6 +320,22 @@ public class SortingExecutionServiceImpl
                 algorithmResult.getSwapCount()
         );
 
+        result.setBenchmarkMemoryUsageMb(
+                memoryUsageMb
+        );
+
+        result.setBenchmarkCpuUsage(
+                cpuUsage
+        );
+
+        result.setBenchmarkThroughput(
+                throughput
+        );
+
+        result.setImprovementPercentage(
+                0.0
+        );
+
         result.setStatus(
                 SortingJobStatus.COMPLETED
         );
@@ -265,5 +365,57 @@ public class SortingExecutionServiceImpl
         );
 
         return result;
+    }
+
+    private long getUsedMemoryBytes() {
+
+        Runtime runtime =
+                Runtime.getRuntime();
+
+        return runtime.totalMemory()
+                - runtime.freeMemory();
+    }
+
+    private double getProcessCpuUsage() {
+
+        try {
+
+            java.lang.management.OperatingSystemMXBean baseBean =
+                    ManagementFactory.getOperatingSystemMXBean();
+
+            if (baseBean instanceof com.sun.management.OperatingSystemMXBean operatingSystemMXBean) {
+
+                double cpuLoad =
+                        operatingSystemMXBean.getProcessCpuLoad();
+
+                if (cpuLoad < 0) {
+                    return 0.0;
+                }
+
+                return cpuLoad * 100.0;
+            }
+
+            return 0.0;
+
+        } catch (Exception e) {
+
+            return 0.0;
+        }
+    }
+
+    private Double calculateThroughput(
+            Long inputSize,
+            Long executionTimeMs
+    ) {
+
+        if (inputSize == null
+                || executionTimeMs == null
+                || executionTimeMs <= 0) {
+
+            return 0.0;
+        }
+
+        return inputSize
+                / (executionTimeMs / 1000.0);
     }
 }

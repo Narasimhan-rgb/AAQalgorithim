@@ -89,6 +89,9 @@ public class AdaptiveAmplitudeQuickSortAlgorithm
         result.setAlgorithmName(
                 getAlgorithmName()
         );
+        result.setAaqMetrics(
+                metrics
+        );
 
         return result;
     }

@@ -34,6 +34,14 @@ public class SortingRunResultDto {
 
     private Long swapCount;
 
+    private Double benchmarkMemoryUsageMb;
+
+    private Double benchmarkCpuUsage;
+
+    private Double benchmarkThroughput;
+
+    private Double improvementPercentage;
+
     private SortingJobStatus status;
 
     private LocalDateTime startedAt;

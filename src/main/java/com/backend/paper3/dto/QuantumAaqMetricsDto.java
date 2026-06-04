@@ -7,7 +7,7 @@ import lombok.Setter;
 
 @Getter
 @Setter
-public class BenchmarkResultDto {
+public class QuantumAaqMetricsDto {
 
     private Long id;
 
@@ -23,29 +23,21 @@ public class BenchmarkResultDto {
 
     private String algorithm;
 
-    private String selectedColumn;
-
-    private Long inputSize;
-
-    private Long executionTimeMs;
-
     private Long comparisonCount;
 
     private Long swapCount;
 
-    private Double throughputRecordsPerSecond;
+    private Long pivotSelectionCount;
 
-    private String status;
+    private Long insertionSortUsageCount;
 
-    private Double benchmarkExecutionTimeMs;
+    private Long heapFallbackCount;
 
-    private Double benchmarkMemoryUsageMb;
+    private Long partitionCount;
 
-    private Double benchmarkCpuUsage;
+    private Double averagePartitionImbalance;
 
-    private Double benchmarkThroughput;
-
-    private Double improvementPercentage;
+    private Double maxPartitionImbalance;
 
     private LocalDateTime createdAt;
 }
