@@ -1,5 +1,6 @@
 package com.backend.paper3.controller;
 
+import java.util.Collections;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,78 +15,149 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import com.backend.paper3.dto.DatasetPreviewDto;
+
 import org.springframework.web.multipart.MultipartFile;
 
 import com.backend.paper3.dto.DatasetDto;
+import com.backend.paper3.dto.DatasetPreviewDto;
+import com.backend.paper3.dto.PythonProfileResponseDto;
 import com.backend.paper3.exception.ApiException;
+import com.backend.paper3.response.ApiResponse;
+import com.backend.paper3.service.DatasetAnalyzerService;
 import com.backend.paper3.service.DatasetService;
 
 @RestController
 @RequestMapping("/dataset")
 public class DatasetController {
 
-	@Autowired
-	private DatasetService datasetService;
+    @Autowired
+    private DatasetService datasetService;
 
-	@PostMapping(value = "/create", consumes = MediaType.APPLICATION_JSON_VALUE)
-	public DatasetDto createDataset(@RequestBody DatasetDto dto) {
-		return datasetService.createDataset(dto);
-	}
+    @Autowired
+    private DatasetAnalyzerService datasetAnalyzerService;
 
-	@PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-	public DatasetDto uploadDataset(@RequestParam("file") MultipartFile file) {
+    @PostMapping(value = "/create", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public DatasetDto createDataset(
+            @RequestBody DatasetDto dto
+    ) {
 
-		if (file == null || file.isEmpty()) {
-			throw new ApiException("Please upload a file");
-		}
+        return datasetService.createDataset(dto);
+    }
 
-		String fileName = file.getOriginalFilename();
+    @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public DatasetDto uploadDataset(
+            @RequestParam("file") MultipartFile file
+    ) {
 
-		if (fileName == null || fileName.isBlank()) {
-			throw new ApiException("Invalid file name");
-		}
+        if (file == null || file.isEmpty()) {
+            throw new ApiException(
+                    "Please upload a file"
+            );
+        }
 
-		String lowerFileName = fileName.toLowerCase();
+        String fileName =
+                file.getOriginalFilename();
 
-		if (lowerFileName.endsWith(".csv")) {
-			return datasetService.createFromCsv(file);
-		}
+        if (fileName == null || fileName.isBlank()) {
+            throw new ApiException(
+                    "Invalid file name"
+            );
+        }
 
-		if (lowerFileName.endsWith(".xlsx")) {
-			return datasetService.createFromXlsx(file);
-		}
+        String lowerFileName =
+                fileName.toLowerCase();
 
-		throw new ApiException("Only CSV and XLSX files are allowed");
-	}
+        if (lowerFileName.endsWith(".csv")) {
+            return datasetService.createFromCsv(
+                    file
+            );
+        }
 
-	@GetMapping("/all")
-	public List<DatasetDto> getAllDatasets() {
-		return datasetService.getAllDatasets();
-	}
-	@GetMapping("/{id}/preview")
-	public DatasetPreviewDto previewDataset(@PathVariable Long id) {
-	    return datasetService.previewDataset(id);
-	}
+        if (lowerFileName.endsWith(".xlsx")) {
+            return datasetService.createFromXlsx(
+                    file
+            );
+        }
 
-	@GetMapping("/{id}")
-	public DatasetDto getDatasetById(@PathVariable Long id) {
-		return datasetService.getDatasetById(id);
-	}
+        throw new ApiException(
+                "Only CSV and XLSX files are allowed"
+        );
+    }
 
-	@GetMapping("/unique/{datasetUniqueId}")
-	public DatasetDto getDatasetByUniqueId(@PathVariable String datasetUniqueId) {
-		return datasetService.getDatasetByUniqueId(datasetUniqueId);
-	}
+    @GetMapping("/all")
+    public List<DatasetDto> getAllDatasets() {
 
-	@PutMapping("/{id}")
-	public DatasetDto updateDataset(@PathVariable Long id, @RequestBody DatasetDto dto) {
-		return datasetService.updateDataset(id, dto);
-	}
+        return datasetService.getAllDatasets();
+    }
 
-	@DeleteMapping("/{id}")
-	public String deleteDataset(@PathVariable Long id) {
-		return datasetService.deleteDataset(id);
-	}
+    @GetMapping("/{id}/preview")
+    public DatasetPreviewDto previewDataset(
+            @PathVariable Long id
+    ) {
 
+        return datasetService.previewDataset(
+                id
+        );
+    }
+
+    @PostMapping("/{id}/analyze")
+    public ApiResponse<PythonProfileResponseDto> analyzeDataset(
+            @PathVariable Long id
+    ) {
+
+        PythonProfileResponseDto response =
+                datasetAnalyzerService.analyzeDataset(
+                        id
+                );
+
+        return ApiResponse
+                .<PythonProfileResponseDto>builder()
+                .success(true)
+                .results(response)
+                .errorCount(0)
+                .errors(Collections.emptyList())
+                .build();
+    }
+
+    @GetMapping("/{id}")
+    public DatasetDto getDatasetById(
+            @PathVariable Long id
+    ) {
+
+        return datasetService.getDatasetById(
+                id
+        );
+    }
+
+    @GetMapping("/unique/{datasetUniqueId}")
+    public DatasetDto getDatasetByUniqueId(
+            @PathVariable String datasetUniqueId
+    ) {
+
+        return datasetService.getDatasetByUniqueId(
+                datasetUniqueId
+        );
+    }
+
+    @PutMapping("/{id}")
+    public DatasetDto updateDataset(
+            @PathVariable Long id,
+            @RequestBody DatasetDto dto
+    ) {
+
+        return datasetService.updateDataset(
+                id,
+                dto
+        );
+    }
+
+    @DeleteMapping("/{id}")
+    public String deleteDataset(
+            @PathVariable Long id
+    ) {
+
+        return datasetService.deleteDataset(
+                id
+        );
+    }
 }
