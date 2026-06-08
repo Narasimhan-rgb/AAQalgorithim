@@ -3,6 +3,7 @@ package com.backend.paper3.serviceimpl;
 import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -10,6 +11,7 @@ import org.springframework.stereotype.Service;
 import com.backend.paper3.dto.DashboardSummaryDto;
 import com.backend.paper3.entity.AlgorithmRecommendationEntity;
 import com.backend.paper3.entity.BenchmarkResultEntity;
+import com.backend.paper3.entity.DatasetEntity;
 import com.backend.paper3.entity.QuantumAaqMetricsEntity;
 import com.backend.paper3.entity.SortingJobEntity;
 import com.backend.paper3.enums.SortingAlgorithmType;
@@ -20,10 +22,10 @@ import com.backend.paper3.repository.DatasetRepository;
 import com.backend.paper3.repository.QuantumAaqMetricsRepository;
 import com.backend.paper3.repository.SortingJobRepository;
 import com.backend.paper3.service.DashboardService;
+import com.backend.paper3.service.QuantumSimulationService;
 
 @Service
-public class DashboardServiceImpl
-        implements DashboardService {
+public class DashboardServiceImpl implements DashboardService {
 
     @Autowired
     private DatasetRepository datasetRepository;
@@ -39,6 +41,9 @@ public class DashboardServiceImpl
 
     @Autowired
     private QuantumAaqMetricsRepository quantumAaqMetricsRepository;
+
+    @Autowired
+    private QuantumSimulationService quantumSimulationService;
 
     @Override
     public DashboardSummaryDto getDashboardSummary() {
@@ -58,86 +63,41 @@ public class DashboardServiceImpl
         DashboardSummaryDto dto =
                 new DashboardSummaryDto();
 
-        dto.setTotalDatasets(
-                datasetRepository.count()
-        );
+        dto.setTotalDatasets(datasetRepository.count());
 
-        dto.setTotalSortingJobs(
-                (long) jobs.size()
-        );
+        dto.setTotalSortingJobs((long) jobs.size());
 
-        dto.setPendingJobs(
-                countJobsByStatus(
-                        jobs,
-                        SortingJobStatus.PENDING
-                )
-        );
+        dto.setPendingJobs(countJobsByStatus(jobs, SortingJobStatus.PENDING));
 
-        dto.setRunningJobs(
-                countJobsByStatus(
-                        jobs,
-                        SortingJobStatus.RUNNING
-                )
-        );
+        dto.setRunningJobs(countJobsByStatus(jobs, SortingJobStatus.RUNNING));
 
-        dto.setCompletedJobs(
-                countJobsByStatus(
-                        jobs,
-                        SortingJobStatus.COMPLETED
-                )
-        );
+        dto.setCompletedJobs(countJobsByStatus(jobs, SortingJobStatus.COMPLETED));
 
-        dto.setFailedJobs(
-                countJobsByStatus(
-                        jobs,
-                        SortingJobStatus.FAILED
-                )
-        );
+        dto.setFailedJobs(countJobsByStatus(jobs, SortingJobStatus.FAILED));
 
-        dto.setCancelledJobs(
-                countJobsByStatus(
-                        jobs,
-                        SortingJobStatus.CANCELLED
-                )
-        );
+        dto.setCancelledJobs(countJobsByStatus(jobs, SortingJobStatus.CANCELLED));
 
-        dto.setTotalBenchmarkResults(
-                (long) benchmarkResults.size()
-        );
+        dto.setTotalBenchmarkResults((long) benchmarkResults.size());
 
-        dto.setTotalRecommendations(
-                (long) recommendations.size()
-        );
+        dto.setTotalRecommendations((long) recommendations.size());
 
-        dto.setTotalQuantumMetricRecords(
-                (long) quantumMetrics.size()
-        );
+        dto.setTotalQuantumMetricRecords((long) quantumMetrics.size());
 
         dto.setBestAaqExecutionTimeMs(
-                calculateBestAaqExecutionTime(
-                        benchmarkResults
-                )
+                calculateBestAaqExecutionTime(benchmarkResults)
         );
 
         dto.setAverageThroughputRecordsPerSecond(
-                calculateAverageThroughput(
-                        benchmarkResults
-                )
+                calculateAverageThroughput(benchmarkResults)
         );
 
-        setLatestRecommendation(
-                dto,
-                recommendations
-        );
+        setLatestRecommendation(dto, recommendations);
 
-        setLatestQuantumMetrics(
-                dto,
-                quantumMetrics
-        );
+        setLatestQuantumMetrics(dto, quantumMetrics);
 
-        dto.setGeneratedAt(
-                LocalDateTime.now()
-        );
+        setLatestPythonQuantumSimulation(dto);
+
+        dto.setGeneratedAt(LocalDateTime.now());
 
         return dto;
     }
@@ -249,62 +209,220 @@ public class DashboardServiceImpl
             return;
         }
 
-        dto.setLatestQuantumJobId(
-                latestMetric.getJobId()
-        );
+        dto.setLatestQuantumJobId(latestMetric.getJobId());
 
         dto.setLatestPivotSelectionCount(
-                safeLong(
-                        latestMetric.getPivotSelectionCount()
-                )
+                safeLong(latestMetric.getPivotSelectionCount())
         );
 
         dto.setLatestInsertionSortUsageCount(
-                safeLong(
-                        latestMetric.getInsertionSortUsageCount()
-                )
+                safeLong(latestMetric.getInsertionSortUsageCount())
         );
 
         dto.setLatestHeapFallbackCount(
-                safeLong(
-                        latestMetric.getHeapFallbackCount()
-                )
+                safeLong(latestMetric.getHeapFallbackCount())
         );
 
         dto.setLatestPartitionCount(
-                safeLong(
-                        latestMetric.getPartitionCount()
-                )
+                safeLong(latestMetric.getPartitionCount())
         );
 
         dto.setLatestAveragePartitionImbalance(
-                safeDouble(
-                        latestMetric.getAveragePartitionImbalance()
-                )
+                safeDouble(latestMetric.getAveragePartitionImbalance())
         );
 
         dto.setLatestMaxPartitionImbalance(
-                safeDouble(
-                        latestMetric.getMaxPartitionImbalance()
-                )
+                safeDouble(latestMetric.getMaxPartitionImbalance())
         );
     }
 
-    private Long safeLong(
-            Long value
+    private void setLatestPythonQuantumSimulation(
+            DashboardSummaryDto dto
     ) {
 
-        return value == null
-                ? 0L
-                : value;
+        try {
+
+            DatasetEntity latestDataset =
+                    getLatestAnalyzedDataset();
+
+            if (latestDataset == null) {
+                dto.setLatestQuantumSimulationStatus("NO_DATASET");
+                return;
+            }
+
+            Map<String, Object> amplitudeResponse =
+                    quantumSimulationService.simulateAmplitudeByDataset(
+                            latestDataset.getId()
+                    );
+
+            Map<String, Object> interferenceResponse =
+                    quantumSimulationService.simulateInterferenceByDataset(
+                            latestDataset.getId()
+                    );
+
+            Map<String, Object> qasmResponse =
+                    quantumSimulationService.generateQasmByDataset(
+                            latestDataset.getId()
+                    );
+
+            Map<String, Object> amplitudeResult =
+                    extractPythonQuantumResult(amplitudeResponse);
+
+            Map<String, Object> interferenceResult =
+                    extractPythonQuantumResult(interferenceResponse);
+
+            Map<String, Object> qasmResult =
+                    extractPythonQuantumResult(qasmResponse);
+
+            dto.setLatestQuantumDatasetId(
+                    latestDataset.getId()
+            );
+
+            dto.setLatestQuantumDatasetName(
+                    latestDataset.getDatasetName()
+            );
+
+            dto.setLatestSimulatedPivotValue(
+                    getDoubleValue(
+                            amplitudeResult,
+                            "selectedPivotValue"
+                    )
+            );
+
+            dto.setLatestSimulatedBestPartitionImbalance(
+                    getDoubleValue(
+                            amplitudeResult,
+                            "bestPartitionImbalance"
+                    )
+            );
+
+            dto.setLatestSimulatedInterferenceGain(
+                    getDoubleValue(
+                            interferenceResult,
+                            "interferenceGain"
+                    )
+            );
+
+            dto.setLatestSimulatedAmplitudeConvergenceScore(
+                    getDoubleValue(
+                            interferenceResult,
+                            "amplitudeConvergenceScore"
+                    )
+            );
+
+            dto.setLatestOpenQasmQubitCount(
+                    getIntegerValue(
+                            qasmResult,
+                            "qubitCount"
+                    )
+            );
+
+            dto.setLatestQuantumSimulationStatus("AVAILABLE");
+
+        } catch (Exception e) {
+
+            dto.setLatestQuantumSimulationStatus("UNAVAILABLE");
+            dto.setLatestSimulatedPivotValue(0.0);
+            dto.setLatestSimulatedBestPartitionImbalance(0.0);
+            dto.setLatestSimulatedInterferenceGain(0.0);
+            dto.setLatestSimulatedAmplitudeConvergenceScore(0.0);
+            dto.setLatestOpenQasmQubitCount(0);
+        }
+    }
+
+    private DatasetEntity getLatestAnalyzedDataset() {
+
+        return datasetRepository
+                .findAll()
+                .stream()
+                .filter(dataset ->
+                        dataset.getFilePath() != null
+                                && dataset.getSelectedSortColumn() != null
+                )
+                .max(
+                        Comparator.comparing(
+                                DatasetEntity::getId
+                        )
+                )
+                .orElse(null);
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> extractPythonQuantumResult(
+            Map<String, Object> response
+    ) {
+
+        if (response == null) {
+            return null;
+        }
+
+        Object result =
+                response.get("pythonQuantumResult");
+
+        if (result instanceof Map) {
+            return (Map<String, Object>) result;
+        }
+
+        return null;
+    }
+
+    private Double getDoubleValue(
+            Map<String, Object> map,
+            String key
+    ) {
+
+        if (map == null) {
+            return 0.0;
+        }
+
+        Object value =
+                map.get(key);
+
+        if (value instanceof Number) {
+            return ((Number) value).doubleValue();
+        }
+
+        return 0.0;
+    }
+
+    private Integer getIntegerValue(
+            Map<String, Object> map,
+            String key
+    ) {
+
+        if (map == null) {
+            return 0;
+        }
+
+        Object value =
+                map.get(key);
+
+        if (value instanceof Number) {
+            return ((Number) value).intValue();
+        }
+
+        return 0;
+    }
+
+    private Long safeLong(
+            Number value
+    ) {
+
+        if (value == null) {
+            return 0L;
+        }
+
+        return value.longValue();
     }
 
     private Double safeDouble(
             Double value
     ) {
 
-        return value == null
-                ? 0.0
-                : value;
+        if (value == null) {
+            return 0.0;
+        }
+
+        return value;
     }
 }

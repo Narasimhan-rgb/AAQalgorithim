@@ -6,6 +6,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -28,11 +29,11 @@ import com.backend.paper3.repository.QuantumAaqMetricsRepository;
 import com.backend.paper3.repository.ReportRepository;
 import com.backend.paper3.repository.SortingJobRepository;
 import com.backend.paper3.service.BenchmarkComparisonService;
+import com.backend.paper3.service.QuantumSimulationService;
 import com.backend.paper3.service.ReportService;
 
 @Service
-public class ReportServiceImpl
-        implements ReportService {
+public class ReportServiceImpl implements ReportService {
 
     @Autowired
     private DatasetRepository datasetRepository;
@@ -52,15 +53,14 @@ public class ReportServiceImpl
     @Autowired
     private ReportRepository reportRepository;
 
+    @Autowired
+    private QuantumSimulationService quantumSimulationService;
+
     @Override
-    public ReportSummaryDto getDatasetReport(
-            Long datasetId
-    ) {
+    public ReportSummaryDto getDatasetReport(Long datasetId) {
 
         if (datasetId == null) {
-            throw new ApiException(
-                    "Dataset id is required"
-            );
+            throw new ApiException("Dataset id is required");
         }
 
         DatasetEntity dataset =
@@ -68,8 +68,7 @@ public class ReportServiceImpl
                         .findById(datasetId)
                         .orElseThrow(
                                 () -> new ApiException(
-                                        "Dataset not found with id : "
-                                                + datasetId
+                                        "Dataset not found with id : " + datasetId
                                 )
                         );
 
@@ -82,24 +81,23 @@ public class ReportServiceImpl
         );
 
         report.setLatestRecommendation(
-                getLatestRecommendation(
-                        datasetId
-                )
+                getLatestRecommendation(datasetId)
         );
 
         report.setLatestQuantumMetrics(
-                getLatestQuantumMetrics(
-                        datasetId
-                )
+                getLatestQuantumMetrics(datasetId)
+        );
+
+        setPythonQuantumSimulationResults(
+                report,
+                datasetId
         );
 
         try {
 
             BenchmarkComparisonSummaryDto comparison =
                     benchmarkComparisonService
-                            .compareAlgorithmsByDataset(
-                                    datasetId
-                            );
+                            .compareAlgorithmsByDataset(datasetId);
 
             report.setBenchmarkComparison(
                     comparison
@@ -116,9 +114,7 @@ public class ReportServiceImpl
 
             BenchmarkResultDto bestResult =
                     benchmarkComparisonService
-                            .getBestResultByDataset(
-                                    datasetId
-                            );
+                            .getBestResultByDataset(datasetId);
 
             report.setBestBenchmarkResult(
                     bestResult
@@ -143,14 +139,10 @@ public class ReportServiceImpl
     }
 
     @Override
-    public ReportGeneratedDto generateReportForJob(
-            Long jobId
-    ) {
+    public ReportGeneratedDto generateReportForJob(Long jobId) {
 
         if (jobId == null) {
-            throw new ApiException(
-                    "Job id is required"
-            );
+            throw new ApiException("Job id is required");
         }
 
         SortingJobEntity job =
@@ -158,15 +150,13 @@ public class ReportServiceImpl
                         .findById(jobId)
                         .orElseThrow(
                                 () -> new ApiException(
-                                        "Sorting job not found with id : "
-                                                + jobId
+                                        "Sorting job not found with id : " + jobId
                                 )
                         );
 
         if (job.getDatasetId() == null) {
             throw new ApiException(
-                    "Dataset id not found for job id : "
-                            + jobId
+                    "Dataset id not found for job id : " + jobId
             );
         }
 
@@ -308,19 +298,13 @@ public class ReportServiceImpl
         );
     }
 
-    private AlgorithmRecommendationDto getLatestRecommendation(
-            Long datasetId
-    ) {
+    private AlgorithmRecommendationDto getLatestRecommendation(Long datasetId) {
 
         List<AlgorithmRecommendationEntity> recommendations =
                 algorithmRecommendationRepository
-                        .findByDatasetIdOrderByCreatedAtDesc(
-                                datasetId
-                        );
+                        .findByDatasetIdOrderByCreatedAtDesc(datasetId);
 
-        if (recommendations == null
-                || recommendations.isEmpty()) {
-
+        if (recommendations == null || recommendations.isEmpty()) {
             return null;
         }
 
@@ -329,25 +313,76 @@ public class ReportServiceImpl
         );
     }
 
-    private QuantumAaqMetricsDto getLatestQuantumMetrics(
-            Long datasetId
-    ) {
+    private QuantumAaqMetricsDto getLatestQuantumMetrics(Long datasetId) {
 
         List<QuantumAaqMetricsEntity> metrics =
                 quantumAaqMetricsRepository
-                        .findByDatasetIdOrderByCreatedAtDesc(
-                                datasetId
-                        );
+                        .findByDatasetIdOrderByCreatedAtDesc(datasetId);
 
-        if (metrics == null
-                || metrics.isEmpty()) {
-
+        if (metrics == null || metrics.isEmpty()) {
             return null;
         }
 
         return mapQuantumMetricsToDto(
                 metrics.get(0)
         );
+    }
+
+    private void setPythonQuantumSimulationResults(
+            ReportSummaryDto report,
+            Long datasetId
+    ) {
+
+        try {
+
+            Map<String, Object> amplitudeResult =
+                    quantumSimulationService
+                            .simulateAmplitudeByDataset(datasetId);
+
+            report.setQuantumAmplitudeSimulation(
+                    amplitudeResult
+            );
+
+        } catch (Exception e) {
+
+            report.setQuantumAmplitudeSimulation(
+                    null
+            );
+        }
+
+        try {
+
+            Map<String, Object> interferenceResult =
+                    quantumSimulationService
+                            .simulateInterferenceByDataset(datasetId);
+
+            report.setQuantumInterferenceSimulation(
+                    interferenceResult
+            );
+
+        } catch (Exception e) {
+
+            report.setQuantumInterferenceSimulation(
+                    null
+            );
+        }
+
+        try {
+
+            Map<String, Object> qasmResult =
+                    quantumSimulationService
+                            .generateQasmByDataset(datasetId);
+
+            report.setQuantumQasmSimulation(
+                    qasmResult
+            );
+
+        } catch (Exception e) {
+
+            report.setQuantumQasmSimulation(
+                    null
+            );
+        }
     }
 
     private void setReportStatus(
@@ -363,6 +398,27 @@ public class ReportServiceImpl
         boolean hasQuantumMetrics =
                 report.getLatestQuantumMetrics() != null;
 
+        boolean hasPythonQuantumSimulation =
+                report.getQuantumAmplitudeSimulation() != null
+                        || report.getQuantumInterferenceSimulation() != null
+                        || report.getQuantumQasmSimulation() != null;
+
+        if (hasRecommendation
+                && hasBenchmark
+                && hasQuantumMetrics
+                && hasPythonQuantumSimulation) {
+
+            report.setReportStatus(
+                    "READY"
+            );
+
+            report.setReportMessage(
+                    "Dataset report is complete with recommendation, benchmark comparison, AAQ metrics, and Python quantum simulation results."
+            );
+
+            return;
+        }
+
         if (hasRecommendation
                 && hasBenchmark
                 && hasQuantumMetrics) {
@@ -372,7 +428,7 @@ public class ReportServiceImpl
             );
 
             report.setReportMessage(
-                    "Dataset report is complete with recommendation, benchmark comparison, and AAQ quantum metrics."
+                    "Dataset report is complete with recommendation, benchmark comparison, and AAQ metrics. Python quantum simulation is not available."
             );
 
             return;
@@ -383,7 +439,7 @@ public class ReportServiceImpl
         );
 
         report.setReportMessage(
-                "Dataset report is partially available. Run recommendation, sorting, and benchmark comparison for complete report."
+                "Dataset report is partially available. Run recommendation, sorting, benchmark, and quantum simulation for complete report."
         );
     }
 
@@ -422,8 +478,7 @@ public class ReportServiceImpl
         } catch (IOException e) {
 
             throw new ApiException(
-                    "Failed to save report file : "
-                            + e.getMessage()
+                    "Failed to save report file : " + e.getMessage()
             );
         }
     }
@@ -610,6 +665,11 @@ public class ReportServiceImpl
             builder.append("No AAQ quantum metrics available.\n\n");
         }
 
+        appendPythonQuantumSimulationSection(
+                builder,
+                summary
+        );
+
         builder.append("Report Status: ")
                 .append(summary.getReportStatus())
                 .append("\n");
@@ -623,6 +683,116 @@ public class ReportServiceImpl
                 .append("\n");
 
         return builder.toString();
+    }
+
+    private void appendPythonQuantumSimulationSection(
+            StringBuilder builder,
+            ReportSummaryDto summary
+    ) {
+
+        builder.append("Python Quantum Simulation\n");
+        builder.append("-------------------------\n");
+
+        Map<String, Object> amplitude =
+                extractPythonQuantumResult(
+                        summary.getQuantumAmplitudeSimulation()
+                );
+
+        Map<String, Object> interference =
+                extractPythonQuantumResult(
+                        summary.getQuantumInterferenceSimulation()
+                );
+
+        Map<String, Object> qasm =
+                extractPythonQuantumResult(
+                        summary.getQuantumQasmSimulation()
+                );
+
+        if (amplitude != null) {
+
+            builder.append("Amplitude Selected Pivot: ")
+                    .append(getValue(amplitude, "selectedPivotValue"))
+                    .append("\n");
+
+            builder.append("Amplitude Best Partition Imbalance: ")
+                    .append(getValue(amplitude, "bestPartitionImbalance"))
+                    .append("\n");
+
+            builder.append("Amplitude Convergence Score: ")
+                    .append(getValue(amplitude, "amplitudeConvergenceScore"))
+                    .append("\n");
+
+        } else {
+
+            builder.append("Amplitude Simulation: Not available\n");
+        }
+
+        if (interference != null) {
+
+            builder.append("Interference Gain: ")
+                    .append(getValue(interference, "interferenceGain"))
+                    .append("\n");
+
+            builder.append("Constructive Reinforcement Count: ")
+                    .append(getValue(interference, "constructiveReinforcementCount"))
+                    .append("\n");
+
+            builder.append("Destructive Suppression Count: ")
+                    .append(getValue(interference, "destructiveSuppressionCount"))
+                    .append("\n");
+
+        } else {
+
+            builder.append("Interference Simulation: Not available\n");
+        }
+
+        if (qasm != null) {
+
+            builder.append("OpenQASM Qubit Count: ")
+                    .append(getValue(qasm, "qubitCount"))
+                    .append("\n");
+
+            builder.append("OpenQASM Selected Pivot: ")
+                    .append(getValue(qasm, "selectedPivotValue"))
+                    .append("\n");
+
+        } else {
+
+            builder.append("OpenQASM Simulation: Not available\n");
+        }
+
+        builder.append("\n");
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> extractPythonQuantumResult(
+            Map<String, Object> response
+    ) {
+
+        if (response == null) {
+            return null;
+        }
+
+        Object result =
+                response.get("pythonQuantumResult");
+
+        if (result instanceof Map) {
+            return (Map<String, Object>) result;
+        }
+
+        return response;
+    }
+
+    private Object getValue(
+            Map<String, Object> map,
+            String key
+    ) {
+
+        if (map == null) {
+            return null;
+        }
+
+        return map.get(key);
     }
 
     private AlgorithmRecommendationDto mapRecommendationToDto(

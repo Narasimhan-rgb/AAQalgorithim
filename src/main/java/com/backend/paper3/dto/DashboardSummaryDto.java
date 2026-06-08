@@ -53,5 +53,21 @@ public class DashboardSummaryDto {
 
     private Double latestMaxPartitionImbalance;
 
+    private Long latestQuantumDatasetId;
+
+    private String latestQuantumDatasetName;
+
+    private Double latestSimulatedPivotValue;
+
+    private Double latestSimulatedBestPartitionImbalance;
+
+    private Double latestSimulatedInterferenceGain;
+
+    private Double latestSimulatedAmplitudeConvergenceScore;
+
+    private Integer latestOpenQasmQubitCount;
+
+    private String latestQuantumSimulationStatus;
+
     private LocalDateTime generatedAt;
 }
