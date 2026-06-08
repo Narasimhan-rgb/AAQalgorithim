@@ -1,6 +1,7 @@
 package com.backend.paper3.dto;
 
 import java.time.LocalDateTime;
+import java.util.Map;
 
 import com.backend.paper3.enums.DatasetPattern;
 
@@ -52,6 +53,12 @@ public class ReportSummaryDto {
     private BenchmarkResultDto bestBenchmarkResult;
 
     private QuantumAaqMetricsDto latestQuantumMetrics;
+
+    private Map<String, Object> quantumAmplitudeSimulation;
+
+    private Map<String, Object> quantumInterferenceSimulation;
+
+    private Map<String, Object> quantumQasmSimulation;
 
     private String reportStatus;
 
