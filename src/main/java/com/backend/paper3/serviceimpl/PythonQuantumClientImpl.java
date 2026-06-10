@@ -43,6 +43,20 @@ public class PythonQuantumClientImpl implements PythonQuantumClient {
 
         return callPythonQuantumApi(url, request);
     }
+    @Override
+    public Map<String, Object> generateQiskitCircuit(
+            PythonQuantumRequestDto request
+    ) {
+
+        String url =
+                pythonServiceBaseUrl
+                        + "/quantum/qiskit-circuit";
+
+        return callPythonQuantumApi(
+                url,
+                request
+        );
+    }
 
     @SuppressWarnings("unchecked")
     private Map<String, Object> callPythonQuantumApi(

@@ -17,4 +17,8 @@ public interface PythonQuantumClient {
     Map<String, Object> generateQasm(
             PythonQuantumRequestDto request
     );
+
+    Map<String, Object> generateQiskitCircuit(
+            PythonQuantumRequestDto request
+    );
 }

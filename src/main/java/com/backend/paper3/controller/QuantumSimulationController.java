@@ -69,4 +69,24 @@ public class QuantumSimulationController {
                 .errors(Collections.emptyList())
                 .build();
     }
+
+@PostMapping("/qiskit/dataset/{datasetId}")
+public ApiResponse<Map<String, Object>> generateQiskitCircuit(
+        @PathVariable Long datasetId
+) {
+
+    Map<String, Object> response =
+            quantumSimulationService
+                    .generateQiskitCircuitByDataset(
+                            datasetId
+                    );
+
+    return ApiResponse
+            .<Map<String, Object>>builder()
+            .success(true)
+            .results(response)
+            .errorCount(0)
+            .errors(Collections.emptyList())
+            .build();
+}
 }

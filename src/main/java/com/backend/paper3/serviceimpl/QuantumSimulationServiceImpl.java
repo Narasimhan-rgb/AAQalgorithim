@@ -71,6 +71,30 @@ public class QuantumSimulationServiceImpl implements QuantumSimulationService {
 
         return addDatasetContext(dataset, pythonResponse);
     }
+    @Override
+    public Map<String, Object> generateQiskitCircuitByDataset(
+            Long datasetId
+    ) {
+
+        DatasetEntity dataset =
+                getDataset(datasetId);
+
+        PythonQuantumRequestDto request =
+                buildQuantumRequest(
+                        dataset,
+                        5
+                );
+
+        Map<String, Object> pythonResponse =
+                pythonQuantumClient.generateQiskitCircuit(
+                        request
+                );
+
+        return addDatasetContext(
+                dataset,
+                pythonResponse
+        );
+    }
 
     private DatasetEntity getDataset(Long datasetId) {
 
