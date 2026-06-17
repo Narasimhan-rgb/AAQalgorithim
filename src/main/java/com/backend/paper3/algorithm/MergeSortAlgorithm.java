@@ -3,10 +3,14 @@ package com.backend.paper3.algorithm;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.backend.paper3.util.SmartComparator;
+
 public class MergeSortAlgorithm
         implements SortingAlgorithm {
 
     private long comparisonCount;
+
+    private SmartComparator comparator = new SmartComparator();
 
     @Override
     public SortingAlgorithmResult sort(
@@ -97,7 +101,7 @@ public class MergeSortAlgorithm
 
             comparisonCount++;
 
-            if (left.get(i).compareTo(right.get(j)) <= 0) {
+            if (comparator.compare(left.get(i), right.get(j)) <= 0) {
 
                 result.add(
                         left.get(i)

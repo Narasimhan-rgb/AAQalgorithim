@@ -20,7 +20,7 @@ public class JavaBuiltInSortAlgorithm
         long startTime =
                 System.nanoTime();
 
-        Collections.sort(values);
+        Collections.sort(values, new com.backend.paper3.util.SmartComparator());
 
         long endTime =
                 System.nanoTime();

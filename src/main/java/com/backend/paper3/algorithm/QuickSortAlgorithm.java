@@ -3,12 +3,16 @@ package com.backend.paper3.algorithm;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.backend.paper3.util.SmartComparator;
+
 public class QuickSortAlgorithm
         implements SortingAlgorithm {
 
     private long comparisonCount;
 
     private long swapCount;
+    
+    private SmartComparator comparator = new SmartComparator();
 
     @Override
     public SortingAlgorithmResult sort(
@@ -95,7 +99,7 @@ public class QuickSortAlgorithm
 
             comparisonCount++;
 
-            if (values.get(j).compareTo(pivot) <= 0) {
+            if (comparator.compare(values.get(j), pivot) <= 0) {
 
                 i++;
 

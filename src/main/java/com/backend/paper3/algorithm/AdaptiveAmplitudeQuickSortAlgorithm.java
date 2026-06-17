@@ -3,12 +3,16 @@ package com.backend.paper3.algorithm;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.backend.paper3.util.SmartComparator;
+
 public class AdaptiveAmplitudeQuickSortAlgorithm
         implements SortingAlgorithm {
 
     private AAQConfiguration configuration;
 
     private AAQMetrics metrics;
+    
+    private SmartComparator comparator;
 
     public AdaptiveAmplitudeQuickSortAlgorithm() {
 
@@ -17,6 +21,8 @@ public class AdaptiveAmplitudeQuickSortAlgorithm
 
         this.metrics =
                 new AAQMetrics();
+                
+        this.comparator = new SmartComparator();
     }
 
     public AdaptiveAmplitudeQuickSortAlgorithm(
@@ -30,6 +36,8 @@ public class AdaptiveAmplitudeQuickSortAlgorithm
 
         this.metrics =
                 new AAQMetrics();
+                
+        this.comparator = new SmartComparator();
     }
 
     @Override
@@ -263,11 +271,10 @@ public class AdaptiveAmplitudeQuickSortAlgorithm
                 (firstIndex, secondIndex) -> {
                     metrics.incrementComparison();
 
-                    return values
-                            .get(firstIndex)
-                            .compareTo(
-                                    values.get(secondIndex)
-                            );
+                    return comparator.compare(
+                            values.get(firstIndex),
+                            values.get(secondIndex)
+                    );
                 }
         );
 
@@ -292,7 +299,7 @@ public class AdaptiveAmplitudeQuickSortAlgorithm
 
             metrics.incrementComparison();
 
-            if (values.get(j).compareTo(pivot) <= 0) {
+            if (comparator.compare(values.get(j), pivot) <= 0) {
 
                 i++;
 
@@ -331,7 +338,7 @@ public class AdaptiveAmplitudeQuickSortAlgorithm
 
                 metrics.incrementComparison();
 
-                if (values.get(j).compareTo(key) <= 0) {
+                if (comparator.compare(values.get(j), key) <= 0) {
                     break;
                 }
 

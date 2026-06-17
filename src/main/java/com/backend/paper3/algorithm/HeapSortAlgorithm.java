@@ -3,12 +3,16 @@ package com.backend.paper3.algorithm;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.backend.paper3.util.SmartComparator;
+
 public class HeapSortAlgorithm
         implements SortingAlgorithm {
 
     private long comparisonCount;
 
     private long swapCount;
+    
+    private SmartComparator comparator = new SmartComparator();
 
     @Override
     public SortingAlgorithmResult sort(
@@ -96,7 +100,7 @@ public class HeapSortAlgorithm
 
             comparisonCount++;
 
-            if (values.get(left).compareTo(values.get(largest)) > 0) {
+            if (comparator.compare(values.get(left), values.get(largest)) > 0) {
                 largest = left;
             }
         }
@@ -105,7 +109,7 @@ public class HeapSortAlgorithm
 
             comparisonCount++;
 
-            if (values.get(right).compareTo(values.get(largest)) > 0) {
+            if (comparator.compare(values.get(right), values.get(largest)) > 0) {
                 largest = right;
             }
         }

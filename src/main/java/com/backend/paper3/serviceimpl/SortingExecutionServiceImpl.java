@@ -368,12 +368,22 @@ public class SortingExecutionServiceImpl
     }
 
     private long getUsedMemoryBytes() {
-
-        Runtime runtime =
-                Runtime.getRuntime();
-
-        return runtime.totalMemory()
-                - runtime.freeMemory();
+        try {
+            java.lang.management.ThreadMXBean threadMXBean = ManagementFactory.getThreadMXBean();
+            if (threadMXBean instanceof com.sun.management.ThreadMXBean sunThreadMXBean) {
+                if (sunThreadMXBean.isThreadAllocatedMemorySupported()) {
+                    if (!sunThreadMXBean.isThreadAllocatedMemoryEnabled()) {
+                        sunThreadMXBean.setThreadAllocatedMemoryEnabled(true);
+                    }
+                    return sunThreadMXBean.getThreadAllocatedBytes(Thread.currentThread().getId());
+                }
+            }
+        } catch (Exception e) {
+            // Ignore and fallback
+        }
+        
+        Runtime runtime = Runtime.getRuntime();
+        return runtime.totalMemory() - runtime.freeMemory();
     }
 
     private double getProcessCpuUsage() {

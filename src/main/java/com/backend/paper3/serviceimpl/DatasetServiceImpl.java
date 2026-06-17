@@ -33,8 +33,14 @@ import com.backend.paper3.exception.ApiException;
 import com.backend.paper3.mapper.DatasetMapper;
 import com.backend.paper3.quantum.QuantumDatasetAnalyzer;
 import com.backend.paper3.repository.DatasetRepository;
+import com.backend.paper3.repository.SortingJobRepository;
+import com.backend.paper3.repository.AlgorithmRecommendationRepository;
+import com.backend.paper3.repository.BenchmarkResultRepository;
+import com.backend.paper3.repository.QuantumAaqMetricsRepository;
+import com.backend.paper3.repository.ReportRepository;
 import com.backend.paper3.service.DatasetService;
 import com.backend.paper3.service.LocalDatasetStorageService;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class DatasetServiceImpl implements DatasetService {
@@ -50,6 +56,21 @@ public class DatasetServiceImpl implements DatasetService {
 
 	@Autowired
 	private LocalDatasetStorageService localDatasetStorageService;
+
+	@Autowired
+	private SortingJobRepository sortingJobRepository;
+
+	@Autowired
+	private AlgorithmRecommendationRepository algorithmRecommendationRepository;
+
+	@Autowired
+	private BenchmarkResultRepository benchmarkResultRepository;
+
+	@Autowired
+	private QuantumAaqMetricsRepository quantumAaqMetricsRepository;
+
+	@Autowired
+	private ReportRepository reportRepository;
 
 	@Override
 	public DatasetDto createDataset(DatasetDto dto) {
@@ -264,10 +285,17 @@ public class DatasetServiceImpl implements DatasetService {
 	}
 
 	@Override
+	@Transactional
 	public String deleteDataset(Long id) {
 
 		DatasetEntity entity = datasetRepository.findById(id)
 				.orElseThrow(() -> new ApiException("Dataset not found with id : " + id));
+
+		reportRepository.deleteByDatasetId(id);
+		quantumAaqMetricsRepository.deleteByDatasetId(id);
+		benchmarkResultRepository.deleteByDatasetId(id);
+		algorithmRecommendationRepository.deleteByDatasetId(id);
+		sortingJobRepository.deleteByDatasetId(id);
 
 		datasetRepository.delete(entity);
 

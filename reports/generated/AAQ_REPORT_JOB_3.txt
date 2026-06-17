@@ -16,11 +16,11 @@ Original File Name: aaq_dataset.xlsx
 File Type: XLSX
 Record Count: 83000
 Column Count: 10
-Detected Pattern: UNKNOWN
-Duplicate Percentage: 0.0
+Detected Pattern: REPEATED_VALUES
+Duplicate Percentage: 99.9699
 Null Percentage: 0.0
-Skewness Value: 0.0
-Sortedness Score: 8332267.075308394
+Skewness Value: -0.002296
+Sortedness Score: 1.0
 
 Recommendation
 --------------
@@ -45,6 +45,17 @@ Partition Count: 376
 Average Partition Imbalance: 0.990987667808721
 Max Partition Imbalance: 1.0
 
+Python Quantum Simulation
+-------------------------
+Amplitude Selected Pivot: 15.0
+Amplitude Best Partition Imbalance: 0.539759
+Amplitude Convergence Score: 0.501928
+Interference Gain: 0.035312
+Constructive Reinforcement Count: 3
+Destructive Suppression Count: 4
+OpenQASM Qubit Count: 5
+OpenQASM Selected Pivot: 15.0
+
 Report Status: READY
-Report Message: Dataset report is complete with recommendation, benchmark comparison, and AAQ quantum metrics.
-Generated At: 2026-06-04T15:05:03.398862400
+Report Message: Dataset report is complete with recommendation, benchmark comparison, AAQ metrics, and Python quantum simulation results.
+Generated At: 2026-06-16T12:58:36.545121600
