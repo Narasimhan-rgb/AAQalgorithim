@@ -71,6 +71,8 @@ public class DatasetServiceImpl implements DatasetService {
 
 	@Autowired
 	private ReportRepository reportRepository;
+	@Autowired
+	private DatasetMapper datasetMapper1;
 
 	@Override
 	public DatasetDto createDataset(DatasetDto dto) {
@@ -283,6 +285,7 @@ public class DatasetServiceImpl implements DatasetService {
 			throw new ApiException("Failed to update dataset : " + e.getMessage());
 		}
 	}
+	
 
 	@Override
 	@Transactional

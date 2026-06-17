@@ -181,35 +181,33 @@ public class AdaptiveAmplitudeQuickSortAlgorithm
                         high
                 );
 
-        swap(
-                values,
-                pivotIndex,
-                high
-        );
+        String pivotValue =
+                values.get(pivotIndex);
 
-        int partitionIndex =
-                partition(
+        int[] eq =
+                partition3(
                         values,
                         low,
-                        high
+                        high,
+                        pivotValue
                 );
 
         recordPartitionImbalance(
                 low,
                 high,
-                partitionIndex
+                eq
         );
 
         adaptiveQuickSort(
                 values,
                 low,
-                partitionIndex - 1,
+                eq[0] - 1,
                 depthLimit - 1
         );
 
         adaptiveQuickSort(
                 values,
-                partitionIndex + 1,
+                eq[1] + 1,
                 high,
                 depthLimit - 1
         );
@@ -283,41 +281,41 @@ public class AdaptiveAmplitudeQuickSortAlgorithm
         );
     }
 
-    private int partition(
+    private int[] partition3(
             List<String> values,
             int low,
-            int high
+            int high,
+            String pivot
     ) {
 
-        String pivot =
-                values.get(high);
+        int lt = low;
+        int i = low;
+        int gt = high;
 
-        int i =
-                low - 1;
-
-        for (int j = low; j < high; j++) {
+        while (i <= gt) {
 
             metrics.incrementComparison();
 
-            if (comparator.compare(values.get(j), pivot) <= 0) {
+            int cmp = comparator.compare(values.get(i), pivot);
 
-                i++;
-
+            if (cmp < 0) {
+                swap(
+                        values,
+                        lt++,
+                        i++
+                );
+            } else if (cmp > 0) {
                 swap(
                         values,
                         i,
-                        j
+                        gt--
                 );
+            } else {
+                i++;
             }
         }
 
-        swap(
-                values,
-                i + 1,
-                high
-        );
-
-        return i + 1;
+        return new int[]{lt, gt};
     }
 
     private void insertionSort(
@@ -430,17 +428,17 @@ public class AdaptiveAmplitudeQuickSortAlgorithm
     private void recordPartitionImbalance(
             int low,
             int high,
-            int partitionIndex
+            int[] eq
     ) {
 
         int leftSize =
-                partitionIndex - low;
+                eq[0] - low;
 
         int rightSize =
-                high - partitionIndex;
+                high - eq[1];
 
         int total =
-                high - low;
+                high - low + 1;
 
         if (total <= 0) {
             return;

@@ -49,10 +49,7 @@ public class BenchmarkComparisonServiceImpl
                 );
 
         if (validResults.isEmpty()) {
-            throw new ApiException(
-                    "No valid benchmark results found for dataset id : "
-                            + datasetId
-            );
+            return null; // Graceful empty state instead of 400 Bad Request
         }
 
         BenchmarkResultEntity bestAaqResult =
@@ -61,11 +58,7 @@ public class BenchmarkComparisonServiceImpl
                 );
 
         if (bestAaqResult == null) {
-            throw new ApiException(
-                    "AAQ benchmark result not found for dataset id : "
-                            + datasetId
-                            + ". Run ADAPTIVE_AMPLITUDE_QUICKSORT first."
-            );
+            return null; // Return null if AAQ hasn't run yet, instead of erroring
         }
 
         BenchmarkResultEntity bestOverallResult =
@@ -172,10 +165,7 @@ public class BenchmarkComparisonServiceImpl
                 );
 
         if (validResults.isEmpty()) {
-            throw new ApiException(
-                    "No valid benchmark result found for dataset id : "
-                            + datasetId
-            );
+            return null; // Graceful empty state instead of 400 Bad Request
         }
 
         BenchmarkResultEntity bestResult =

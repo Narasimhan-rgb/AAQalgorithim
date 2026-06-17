@@ -375,7 +375,7 @@ public class SortingExecutionServiceImpl
                     if (!sunThreadMXBean.isThreadAllocatedMemoryEnabled()) {
                         sunThreadMXBean.setThreadAllocatedMemoryEnabled(true);
                     }
-                    return sunThreadMXBean.getThreadAllocatedBytes(Thread.currentThread().getId());
+                    return sunThreadMXBean.getThreadAllocatedBytes(Thread.currentThread().threadId());
                 }
             }
         } catch (Exception e) {
