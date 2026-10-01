@@ -1,0 +1,6 @@
+[submodule "frontend"]
+	path = frontend
+	url = https://github.com/Narasimhan-rgb/AAQ_frontend.git
+[submodule "python-service"]
+	path = python-service
+	url = https://github.com/Narasimhan-rgb/python_services-.git

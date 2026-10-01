@@ -1,34 +1,50 @@
-HELP.md
+# Build output
 target/
+bin/
+build/
+dist/
+*.class
+
+# Maven wrapper binary
 .mvn/wrapper/maven-wrapper.jar
-!**/src/main/**/target/
-!**/src/test/**/target/
 
-### STS ###
-.apt_generated
-.classpath
-.factorypath
-.project
-.settings
-.springBeans
-.sts4-cache
+# Local runtime data
+data/
+reports/generated/
+*.db
+*.sqlite
+*.sqlite3
+*.csv
+*.parquet
+*.xlsx
 
-### IntelliJ IDEA ###
-.idea
+# Secrets and local environment
+.env
+.env.*
+!.env.example
+*.local
+application-local.properties
+src/main/resources/application-local.properties
+
+# IDEs
+.idea/
+.vscode/
 *.iws
 *.iml
 *.ipr
+.classpath
+.factorypath
+.project
+.settings/
+.apt_generated/
+.springBeans
+.sts4-cache/
+nbproject/private/
+nbbuild/
+nbdist/
+.nb-gradle/
 
-### NetBeans ###
-/nbproject/private/
-/nbbuild/
-/dist/
-/nbdist/
-/.nb-gradle/
-build/
-!**/src/main/**/build/
-!**/src/test/**/build/
-
-### VS Code ###
-.vscode/
-reports/generated/ 
+# OS / logs
+.DS_Store
+Thumbs.db
+*.log

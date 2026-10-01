@@ -1,135 +1,111 @@
 # Adaptive Amplitude QuickSort (AAQ)
 
-> A classical quantum-inspired sorting research project focused on adaptive pivot selection, workload-aware benchmarking, live execution metrics, and reproducible algorithm evaluation.
+> Canonical repository for the AAQ research platform: Java/Spring Boot backend, Adaptive Amplitude QuickSort research engine, reproducibility workflow, React dashboard, and Python analysis service.
 
-## Important scope note
+## Scope
 
-AAQ is a **classical quantum-inspired algorithm**. It does not require quantum hardware and does not claim a universal quantum speedup. Quantum terminology is used as an algorithm-engineering analogy for adaptive probability weighting, amplitude-style pivot-region selection, reinforcement/suppression, and correlated neighbor updates.
+AAQ is a **classical quantum-inspired sorting research project**. It does not require quantum hardware and does not claim a universal quantum speedup. The project studies adaptive, probability-guided pivot selection and its behaviour across structured and difficult workloads.
 
-## Research objective
-
-The project studies whether adaptive probability-guided pivot selection can reduce partition imbalance and improve practical sorting behaviour on difficult workloads such as:
-
-- skewed datasets
-- repeated-value datasets
-- nearly sorted datasets
-- reverse-sorted datasets
-- adversarial or structured inputs
-- recurring workloads with similar distributions
-
-Traditional sorting algorithms are used as validation baselines.
-
-## Current integrated project status
-
-The integrated AAQ reproducibility build now includes:
-
-- Java 21 Spring Boot backend
-- PostgreSQL dataset/job/benchmark storage
-- dataset upload, preview, metadata and selected-column handling
-- Python-assisted dataset analysis and pattern detection
-- Adaptive Amplitude QuickSort (AAQ) V0.4 implementation
-- three-way partitioning, insertion-sort cutoff and Heapsort fallback
-- amplitude-weighted pivot sampling and adaptive reinforcement/suppression
-- baseline algorithms for validation
-- sorting-job execution and benchmark persistence
-- live AAQ execution metrics for progress, partition imbalance, throughput, memory, comparisons and swaps
-- JMH paper benchmark workflow
-- Paper V0.4 reference/live reproduction API integration
-- report and recommendation workflow
-
-## Paper benchmark / reproducibility
-
-The controlled JMH experiment uses:
+## Repository layout
 
 ```text
-6 algorithms
-15 workload distributions
-5 input sizes
-30 independent seeds
-= 13,500 measured benchmark rows
+AAQalgorithim/
+├─ src/                 Java 21 / Spring Boot backend and AAQ engine
+├─ reports/             curated research outputs
+├─ docs/                architecture, setup, and repository notes
+├─ frontend/            Git submodule → AAQ_frontend
+├─ python-service/      Git submodule → python_services-
+├─ pom.xml
+└─ README.md
 ```
 
-Input sizes:
+The former frontend and Python repositories remain separate component histories, but this repository is now the **single entry point** for the complete AAQ system.
 
-```text
-1,000
-10,000
-100,000
-500,000
-1,000,000
-```
+## Clone the complete project
 
-The combined benchmark result file is `paper-jmh.csv`. It is benchmark output and should be analyzed through the paper-reproduction workflow rather than treated as a normal sortable input dataset.
-
-## Data used / source
-
-The research uses a combination of controlled synthetic workloads and publicly available/open-source data for realistic evaluation.
-
-**Published dataset source:**
-
-- Kaggle — [Quantum Amplititude Sort Testing Data](https://www.kaggle.com/datasets/narasimhandasarathy/quantum-amplititude-sort-testing-data/data)
-
-The synthetic workloads represent different sorting behaviours such as uniform-random, Gaussian/skewed, Zipf-like, nearly sorted, reverse sorted, organ-pipe, repeated-value, bounded-integer, streaming-chunk, high-entropy and other structured distributions. The same seeded workload instance is supplied to competing algorithms for fair comparison.
-
-Open Library / Internet Archive catalogue records are also used as real-world source material where applicable. Dataset licensing and collection-specific usage terms should be checked before redistribution.
-
-## System overview
-
-```text
-Dataset upload / controlled workload
-        ↓
-Dataset profiling and pattern detection
-        ↓
-AAQ execution
-        ↓
-Live partition/amplitude metrics
-        ↓
-Classical baseline validation
-        ↓
-Benchmark persistence
-        ↓
-Paper/JMH reproduction analysis
-        ↓
-Dashboard, recommendation and reports
-```
-
-## Core contribution
-
-Adaptive Amplitude QuickSort maintains normalized non-negative weights over pivot regions. Candidate pivots are sampled and evaluated according to partition quality; better regions are reinforced while poor regions are suppressed. Neighboring regions can also receive correlated updates. The design keeps the sorting engine classical while using quantum-inspired probability concepts as a decision mechanism.
-
-## Technology stack
-
-| Module | Technology |
-|---|---|
-| Backend / sorting engine | Java 21, Spring Boot 4 |
-| Benchmarking | JMH |
-| Database | PostgreSQL |
-| Dataset-analysis service | Python, FastAPI, Polars |
-| Frontend | React, Vite, Recharts |
-
-## Repository role
-
-This repository contains the main AAQ Java backend and research/benchmarking engine.
-
-Related repositories:
-
-- `AAQ_frontend` — React dashboard, live AAQ graphs and Paper V0.4 results UI
-- `python_services-` — Python dataset profiling and paper-reproduction analysis service
-
-## Local backend setup
-
-```cmd
-git clone https://github.com/Narasimhan-rgb/AAQalgorithim.git
+```bash
+git clone --recurse-submodules https://github.com/Narasimhan-rgb/AAQalgorithim.git
 cd AAQalgorithim
-.\mvnw.cmd spring-boot:run
 ```
 
-The backend expects PostgreSQL configuration through the project properties/environment variables and communicates with the Python service on port `8000` by default.
+For an existing clone:
 
-## Research interpretation
+```bash
+git submodule update --init --recursive
+```
 
-The project evaluates **workload-dependent engineering advantages**, not an asymptotic quantum speedup. Paper comparisons should use controlled JMH results generated under the same workload, seed and runtime conditions for each competing algorithm.
+## Main components
 
-## Progress documentation
+| Component | Technology | Role |
+|---|---|---|
+| Backend / sorting engine | Java 21, Spring Boot | AAQ execution, APIs, persistence, reports |
+| Benchmarks | JMH | controlled reproducibility experiments |
+| Database | PostgreSQL | datasets, jobs, benchmark results |
+| Python service | FastAPI, Polars | profiling, workload analysis, research support |
+| Frontend | React, Vite, Recharts | dashboard, live metrics, benchmark views |
 
-See [`PROJECT_PROGRESS.md`](PROJECT_PROGRESS.md) for the current cross-repository implementation status and recent reproducibility work.
+## Local services
+
+Default development ports:
+
+```text
+Java backend   http://localhost:8080
+Python service http://127.0.0.1:8000
+Frontend       http://localhost:5173
+```
+
+### Required backend environment variables
+
+The repository no longer stores local database passwords or JWT secrets in source control.
+
+```text
+AAQ_DB_PASSWORD=<your local PostgreSQL password>
+AAQ_JWT_SECRET=<a long random secret>
+```
+
+Optional overrides include `AAQ_DB_URL`, `AAQ_DB_USERNAME`, `AAQ_DB_SCHEMA`, `AAQ_FILE_STORAGE`, and `AAQ_PYTHON_SERVICE_URL`.
+
+See [docs/SECURITY_AND_LOCAL_SETUP.md](docs/SECURITY_AND_LOCAL_SETUP.md).
+
+## Research workflow
+
+```text
+Dataset / controlled workload
+        ↓
+Python profiling and pattern analysis
+        ↓
+AAQ + classical baseline execution
+        ↓
+Live execution metrics
+        ↓
+JMH benchmark persistence
+        ↓
+Reproducibility analysis
+        ↓
+Dashboard and reports
+```
+
+The controlled benchmark workflow is designed to compare algorithms on the same workload, seed, and runtime conditions. Runtime application timings should not be substituted for controlled JMH measurements.
+
+## Data
+
+The project uses controlled synthetic workloads and public/open-source datasets for realistic evaluation. Large datasets and generated benchmark artifacts are intentionally excluded from Git.
+
+## Repository hygiene
+
+Do not commit:
+
+- passwords, API keys, JWT secrets, or `.env` files
+- compiled `.class` files or build directories
+- local SQLite/PostgreSQL database files
+- generated benchmark outputs
+- large raw datasets
+- IDE-specific files
+
+## Documentation
+
+- [Repository structure](docs/REPOSITORY_STRUCTURE.md)
+- [Security and local setup](docs/SECURITY_AND_LOCAL_SETUP.md)
+- [Project progress](PROJECT_PROGRESS.md)
+- [Known limitations](KNOWN_LIMITATIONS.md)
+- [Demo script](FINAL_DEMO_SCRIPT.md)
