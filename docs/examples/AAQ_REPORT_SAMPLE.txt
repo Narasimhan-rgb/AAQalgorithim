@@ -1,3 +1,5 @@
+Example generated AAQ report retained for documentation only. Runtime-generated reports belong under reports/generated/ and are ignored by Git.
+
 AAQ Dataset Report
 ==================
 

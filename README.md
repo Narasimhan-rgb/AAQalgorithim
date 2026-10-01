@@ -106,6 +106,7 @@ Do not commit:
 
 - [Repository structure](docs/REPOSITORY_STRUCTURE.md)
 - [Security and local setup](docs/SECURITY_AND_LOCAL_SETUP.md)
-- [Project progress](PROJECT_PROGRESS.md)
-- [Known limitations](KNOWN_LIMITATIONS.md)
-- [Demo script](FINAL_DEMO_SCRIPT.md)
+- [Project progress](docs/PROJECT_PROGRESS.md)
+- [Known limitations](docs/KNOWN_LIMITATIONS.md)
+- [Demo script](docs/DEMO_SCRIPT.md)
+- [AAQ report sample](docs/examples/AAQ_REPORT_SAMPLE.txt)
